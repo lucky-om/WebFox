@@ -1,9 +1,17 @@
 import builtwith
 from colorama import Fore
+
 def scan(domain, save_path):
-    print(Fore.YELLOW + "[*] Detecting Tech...")
+    print(Fore.YELLOW + "[*] Detecting Technologies...")
     try:
-        r = builtwith.parse(f"http://{domain}")
-        with open(f"{save_path}/technologies.txt", "w") as f: f.write(str(r))
-    except: pass
-      
+        url = f"http://{domain}"
+        tech = builtwith.parse(url)
+        
+        with open(f"{save_path}/technologies.txt", "w") as f:
+            for category, tools in tech.items():
+                line = f"{category}: {', '.join(tools)}"
+                print(Fore.BLUE + f"    {line}")
+                f.write(line + "\n")
+        print(Fore.GREEN + "[✓] Tech stack saved.")
+    except:
+        print(Fore.RED + "[-] Tech detection failed.")
