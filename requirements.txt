@@ -7,3 +7,6 @@ python-whois
 dnspython
 builtwith
 urllib3
+pandas
+plotly
+
