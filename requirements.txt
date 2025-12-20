@@ -3,8 +3,7 @@ requests
 colorama
 selenium
 webdriver-manager
-urllib3
-argparse
 python-whois
 dnspython
 builtwith
+urllib3
