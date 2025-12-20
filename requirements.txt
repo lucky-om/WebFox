@@ -9,4 +9,5 @@ builtwith
 urllib3
 pandas
 plotly
+tqdm
 
