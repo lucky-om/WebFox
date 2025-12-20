@@ -52,7 +52,7 @@ wait $PID
 
 # STEP 4
 echo -e "\n${CYAN}[4/4] Configuring Drivers (Geckodriver x64)...${NC}"
-wget -q -O driver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v0.33.0/geckodriver-v0.33.0-linux64.tar.gz"
+wget -q -O driver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
 tar -xf driver.tar.gz
 chmod +x geckodriver
 sudo mv geckodriver /usr/bin/ > /dev/null 2>&1
