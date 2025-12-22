@@ -7,6 +7,7 @@ def scan(domain, save_path):
         print(Fore.GREEN + f"    > IP   : {ip}")
         print(Fore.GREEN + f"    > Cloud: {r.get('isp')}")
         with open(f"{save_path}/ip_location.txt", "w") as f:
+            
             f.write(f"IP Address  : {ip}\n")
             f.write(f"City        : {r.get('city')}\n")
             f.write(f"Region      : {r.get('regionName')}\n")
