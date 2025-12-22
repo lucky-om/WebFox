@@ -12,7 +12,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 # --- MODULE IMPORTS ---
 from core.basic import live_check, subdomain, portscanner, screenshot
 from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
-from core.crawl import robots, sitemap, js_scan, email_scan
+from core.basic import dos_check, cors_scan, sqli_scan, real_ip
+from core.crawl import robots, sitemap, js_scan, email_scan, admin_scan, social_scan
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -25,14 +26,13 @@ def type_effect(text, color=Fore.GREEN):
     print("")
 
 def loading_bar(task):
-    sys.stdout.write(f"{Fore.CYAN}[*] {task:<25} ")
+    sys.stdout.write(f"{Fore.CYAN}[*] {task:<30} ")
     sys.stdout.flush()
-    # Shorter animation to not waste time
     for i in range(5):
         time.sleep(0.05)
         sys.stdout.write(Fore.GREEN + "█")
         sys.stdout.flush()
-    print(Fore.GREEN + " [PROCESSING]")
+    print(Fore.GREEN + " [DONE]")
 
 def banner():
     clear()
@@ -46,8 +46,8 @@ def banner():
   ▒ ░ ░   ░ ░  ░▒░▒   ░  ░       ░ ▒ ▒░ ░░   ░▒ ░
     """
     print(Fore.RED + Style.BRIGHT + logo)
-    print(f"{Fore.CYAN}    Version : {Fore.WHITE}v10.0 (NO LIMITS)")
-    print(f"{Fore.CYAN}    Mode    : {Fore.WHITE}Infinite Timeout\n")
+    print(f"{Fore.CYAN}    Version : {Fore.WHITE}v11.0 Ultimate")
+    print(f"{Fore.CYAN}    System  : {Fore.WHITE}Android / Kali NetHunter\n")
 
 def main():
     parser = argparse.ArgumentParser(add_help=False)
@@ -79,6 +79,9 @@ def main():
         loading_bar("Extracting Ownership")
         whois_scan.scan(args.domain, save_path)
         
+        loading_bar("Detecting Real IP (Cloudflare Bypass)")
+        real_ip.scan(args.domain, save_path)
+        
         loading_bar("Dumping DNS Zone")
         dns_scan.scan(args.domain, save_path)
 
@@ -89,11 +92,20 @@ def main():
         loading_bar("Bypassing WAF / Headers")
         waf.scan(args.domain, save_path)
         
-        loading_bar("Fingerprinting Tech")
+        loading_bar("Checking CORS Misconfig")
+        cors_scan.scan(args.domain, save_path)
+        
+        loading_bar("Testing DoS Vulnerability")
+        dos_check.scan(args.domain, save_path)
+        
+        loading_bar("Fingerprinting OS & Tech")
         tech_detect.scan(args.domain, save_path)
+        
+        loading_bar("Hunting SQL Injection")
+        sqli_scan.scan(args.domain, save_path)
 
         print(Fore.WHITE + "\n--- [ PHASE 3: DEEP RECON ] ---")
-        print(Fore.YELLOW + "[*] Enumerating Subdomains (Wait Mode)...")
+        print(Fore.YELLOW + "[*] Enumerating Subdomains...")
         subdomain.enumerate(args.domain, save_path)
         
         print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
@@ -103,16 +115,23 @@ def main():
         loading_bar("Harvesting Emails")
         email_scan.scan(args.domain, save_path)
         
+        loading_bar("Scraping Social Profiles")
+        social_scan.scan(args.domain, save_path)
+        
+        loading_bar("Brute-forcing Admin Panels")
+        admin_scan.scan(args.domain, save_path)
+        
         loading_bar("Robots.txt Secrets")
         robots.scan(args.domain, save_path)
         sitemap.scan(args.domain, save_path)
         js_scan.scan(args.domain, save_path)
 
         print(Fore.WHITE + "\n--- [ PHASE 5: VISUAL SURVEILLANCE ] ---")
-        print(Fore.YELLOW + "[*] Capturing Evidence (High Timeout)...")
+        loading_bar("Capturing Evidence")
         screenshot.capture(args.domain, save_path)
 
         type_effect("\n[✓] MISSION ACCOMPLISHED. REPORT GENERATED.", Fore.GREEN)
 
 if __name__ == "__main__":
     main()
+
