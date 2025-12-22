@@ -19,7 +19,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🦊 WEBFOX // ULTIMATE EDITION")
+st.title("🦊 WEBFOX Recon Tool")
 st.markdown("---")
 
 col1, col2 = st.columns([3, 1])
@@ -68,40 +68,6 @@ if target:
         with tabs[4]:
             if os.path.exists(f"{report_path}/emails.txt"): st.code(open(f"{report_path}/emails.txt").read())
             else: st.info("No Emails Found.")
-        # TAB 2: NETWORK (Subdomains, Ports, DNS)
-        with tab2:
-            c1, c2, c3 = st.columns(3)
-            with c1:
-                st.markdown("### 🌐 SUBDOMAINS")
-                if os.path.exists(f"{report_path}/subdomains.txt"):
-                    st.text_area("Found Subdomains", open(f"{report_path}/subdomains.txt").read(), height=300)
-                else: st.info("No Subdomains.")
-            
-            with c2:
-                st.markdown("### 🔌 OPEN PORTS")
-                if os.path.exists(f"{report_path}/ports.txt"):
-                    st.text_area("Port Scan", open(f"{report_path}/ports.txt").read(), height=300)
-                else: st.info("No Open Ports Found.")
-                
-            with c3:
-                st.markdown("### 📒 DNS RECORDS")
-                if os.path.exists(f"{report_path}/dns.txt"):
-                    st.code(open(f"{report_path}/dns.txt").read())
-                else: st.info("No DNS Info.")
-
-        # TAB 3: SECURITY (SSL, WAF, TECH)
-        with tab3:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("### 🔥 FIREWALL (WAF)")
-                if os.path.exists(f"{report_path}/waf.txt"):
-                    st.error(open(f"{report_path}/waf.txt").read()) # Red text for WAF
-                else: st.info("No WAF Data.")
-                
-                st.markdown("### 🛠️ TECHNOLOGY STACK")
-                if os.path.exists(f"{report_path}/technologies.txt"):
-                    st.code(open(f"{report_path}/technologies.txt").read())
-                else: st.info("No Tech Data.")
                 
             with c2:
                 st.markdown("### 🔐 SSL CERTIFICATE")
