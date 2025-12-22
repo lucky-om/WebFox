@@ -37,7 +37,6 @@ animate "    Loading Repos"
 wait $PID
 
 # STEP 2: REPAIR PIP & INSTALL TOOLS
-# I added '--reinstall python3-pip' to fix your corrupted pip error automatically
 echo -e "\n${CYAN}[2/4] Installing & Repairing Core Tools...${NC}"
 sudo apt install --reinstall -y python3-pip > /dev/null 2>&1
 sudo apt install -y python3 git wget tar curl jq firefox-esr > /dev/null 2>&1 &
@@ -47,35 +46,43 @@ wait $PID
 
 # STEP 3: LIBRARIES
 echo -e "\n${CYAN}[3/4] Installing Python Libraries...${NC}"
-# Installing builtwith specifically first to ensure it's not missed
 pip3 install builtwith --break-system-packages > /dev/null 2>&1
 pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1 &
 PID=$!
 animate "    Downloading Libraries"
 wait $PID
 
-# STEP 4: LATEST GECKODRIVER (Dynamic Fetch)
-echo -e "\n${CYAN}[4/4] Configuring Latest Geckodriver...${NC}"
+# STEP 4: INSTALL GECKODRIVER (DIRECT LINK)
+echo -e "\n${CYAN}[4/4] Configuring Geckodriver (v0.36.0)...${NC}"
 
-# 1. Dynamically get the URL for the absolute latest version from GitHub API
-LATEST_URL=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest | jq -r '.assets[] | select(.name | contains("linux64.tar.gz")) | .browser_download_url')
+# DIRECT LINK - No API calls to fail
+DOWNLOAD_URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
 
-# 2. Fallback if API fails (Use v0.36.0 which is current latest)
-if [ -z "$LATEST_URL" ]; then
-    LATEST_URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
+# Force remove old driver to prevent conflicts
+sudo rm -f /usr/bin/geckodriver
+rm -f driver.tar.gz
+
+# Download with verbose off (-q) but show errors
+wget -O driver.tar.gz "$DOWNLOAD_URL"
+
+if [ -f "driver.tar.gz" ]; then
+    # Extract
+    tar -xf driver.tar.gz
+    
+    # Install
+    chmod +x geckodriver
+    sudo mv geckodriver /usr/bin/geckodriver
+    rm driver.tar.gz
+    
+    animate "    Finalizing Setup"
+else
+    echo -e "${RED}[!] Download Failed. Check Internet Connection.${NC}"
+    exit 1
 fi
-
-# 3. Download & Install to /usr/bin/ (Correct Path)
-wget -q -O driver.tar.gz "$LATEST_URL"
-tar -xf driver.tar.gz
-chmod +x geckodriver
-sudo mv geckodriver /usr/bin/geckodriver > /dev/null 2>&1
-rm driver.tar.gz
-animate "    Finalizing Setup"
 
 echo -e "\n${GREEN}=========================================="
 echo -e "   [✓] INSTALLATION SUCCESSFUL"
 echo -e "   [✓] PIP REPAIRED & PACKAGES INSTALLED"
-echo -e "   [✓] GECKODRIVER PATH: /usr/bin/geckodriver"
+echo -e "   [✓] GECKODRIVER INSTALLED"
 echo -e "   [>] Run: python3 test.py -help"
 echo -e "==========================================${NC}"
