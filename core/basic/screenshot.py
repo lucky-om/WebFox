@@ -2,106 +2,80 @@ import time
 import os
 import re
 import requests
-import platform
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from colorama import Fore
 
 def capture(domain, save_path):
-    # --- SMART DETECTION ---
-    # Check if running on Phone (ARM) or PC (x86)
-    arch = platform.machine().lower()
-    is_phone = "aarch64" in arch or "arm" in arch or os.path.exists("/data/data/com.termux")
+    print(Fore.YELLOW + "[*] Taking Full-Res Screenshots (Please Wait)...")
     
-    if is_phone:
-        MAX_PAGES = 5
-        print(Fore.YELLOW + f"[*] Phone Detected ({arch}): Limiting to {MAX_PAGES} pages to prevent crash.")
-    else:
-        MAX_PAGES = 1000
-        print(Fore.GREEN + f"[*] Laptop/PC Detected ({arch}): NO LIMIT set (Max 1000).")
-    # -----------------------
-
-    print(Fore.YELLOW + "[*] Starting Multi-Page Screenshot...")
-    
-    # 1. Setup Robust Firefox Options
+    # 1. Force Headless Mode
     os.environ['MOZ_HEADLESS'] = '1'
+    
     options = Options()
     options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-sandbox")            # <--- CRITICAL FIX FOR ROOT USER
+    options.add_argument("--disable-dev-shm-usage") # <--- Prevents memory crashes
     options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    
-    # Locate Firefox Binary
+    options.add_argument("--width=1920")
+    options.add_argument("--height=1080")
+
+    # 2. Point to correct Firefox Binary (ESR is stable on Kali)
     if os.path.exists("/usr/bin/firefox-esr"):
         options.binary_location = "/usr/bin/firefox-esr"
     elif os.path.exists("/usr/bin/firefox"):
         options.binary_location = "/usr/bin/firefox"
 
-    # Locate Geckodriver
+    # 3. Locate Geckodriver (Standard Paths)
     service = None
     if os.path.exists("/usr/bin/geckodriver"):
         service = Service("/usr/bin/geckodriver")
     elif os.path.exists("./geckodriver"):
         service = Service("./geckodriver")
 
-    driver = None
     try:
-        # 2. Initialize Driver
+        # 4. Initialize Driver
         if service:
             driver = webdriver.Firefox(options=options, service=service)
         else:
             driver = webdriver.Firefox(options=options)
-        
-        driver.set_page_load_timeout(45)
+            
+        driver.set_page_load_timeout(60)
 
-        # 3. Find Pages to Screenshot
-        base_url = f"http://{domain}"
-        target_urls = [base_url]
-        
+        # 5. Simple Crawler to find pages
+        base = f"http://{domain}"
+        urls = [base]
         try:
-            print(Fore.CYAN + "    Fetching internal links...")
-            html = requests.get(base_url, timeout=10).text
+            html = requests.get(base, timeout=10).text
             links = re.findall(r'href=["\'](https?://' + domain + r'/[^"\']*|/[^"\']*)["\']', html)
-            
-            for link in links:
-                full_url = link if link.startswith("http") else f"http://{domain}{link}"
-                if full_url not in target_urls and domain in full_url:
-                    target_urls.append(full_url)
-            
-            # Apply the Dynamic Limit
-            count_found = len(target_urls)
-            target_urls = list(set(target_urls))[:MAX_PAGES]
-            
-            print(Fore.CYAN + f"    Found {count_found} pages. Snapshotting {len(target_urls)} pages...")
-            
-        except Exception as e:
-            print(Fore.RED + f"[-] Crawl error: {e}. Defaulting to homepage.")
-            target_urls = [base_url]
+            for l in links:
+                full = l if l.startswith("http") else base + l
+                if full not in urls: urls.append(full)
+            urls = list(set(urls))[:10] # Limit to 10 pages
+        except: pass
 
-        # 4. Loop and Screenshot
-        for i, url in enumerate(target_urls):
+        print(Fore.CYAN + f"    > Target List: {len(urls)} pages")
+
+        for i, u in enumerate(urls):
             try:
-                print(Fore.BLUE + f"    [{i+1}/{len(target_urls)}] Snapping: {url}")
-                driver.get(url)
-                time.sleep(3)
+                driver.get(u)
+                time.sleep(2)
+                name = u.replace("http://","").replace(domain,"").replace("/","_")[:40]
+                if not name or name == "_": name = "homepage"
                 
-                # Naming
-                safe_name = url.replace(f"http://{domain}", "").replace("/", "_").strip("_")
-                if not safe_name: safe_name = "homepage"
-                # Shorten filename if too long
-                safe_name = safe_name[:50] 
-                
-                driver.save_screenshot(f"{save_path}/screen_{safe_name}.png")
-                
+                filename = f"{save_path}/{name}.png"
+                driver.save_screenshot(filename)
+                print(Fore.BLUE + f"    > [{i+1}] Captured: {name}.png")
             except Exception as e:
-                print(Fore.RED + f"    Failed to snap {url}")
+                pass 
 
-        print(Fore.GREEN + f"[✓] Screenshots saved in {save_path}")
+        driver.quit()
+        print(Fore.GREEN + "[✓] Screenshots saved.")
 
     except Exception as e:
-        print(Fore.RED + f"[-] Screenshot Engine Failed: {e}")
+        print(Fore.RED + f"    > Screenshot Error: {e}")
+        print(Fore.RED + "    > TIP: Run './install.sh' again to fix drivers.")
         
     finally:
         if driver:
