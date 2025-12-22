@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# NEON COLORS
+# --- NEON THEME CONFIG ---
 GREEN='\033[0;32m'
 NEON_GREEN='\033[1;32m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# MATRIX ANIMATION
+# --- MATRIX ANIMATION ---
 matrix_effect() {
     clear
     echo -e "${NEON_GREEN}"
@@ -16,51 +16,48 @@ matrix_effect() {
     sleep 0.5
 }
 
-# PROGRESS BAR
-progress() {
-    echo -ne "${CYAN}[*] $1... "
-    for i in {1..20}; do
-        echo -ne "█"
-        sleep 0.02
-    done
-    echo -e " ${NEON_GREEN}[DONE]${NC}"
-}
-
 matrix_effect
 
-echo -e "${NEON_GREEN}[1/5] Updating System Core...${NC}"
-sudo apt update -qq > /dev/null 2>&1 &
-wait $!
-progress "System Update"
+# 1. SYSTEM UPDATE
+echo -e "${CYAN}[*] Updating System Core...${NC}"
+sudo apt update -qq > /dev/null 2>&1
+echo -e "${GREEN}    > System Core Updated.${NC}"
 
-echo -e "\n${NEON_GREEN}[2/5] Repairing Python Environment...${NC}"
-sudo apt install --reinstall -y python3-pip > /dev/null 2>&1
-progress "PIP Repair"
+# 2. INSTALL DEPENDENCIES
+echo -e "\n${CYAN}[*] Installing Offensive Tools...${NC}"
+sudo apt install -y python3 python3-pip git wget tar curl jq firefox-esr > /dev/null 2>&1
+echo -e "${GREEN}    > Dependencies Installed.${NC}"
 
-echo -e "\n${NEON_GREEN}[3/5] Installing Offensive Tools...${NC}"
-sudo apt install -y python3 git wget tar curl jq firefox-esr > /dev/null 2>&1 &
-wait $!
-progress "Installing Dependencies"
-
-echo -e "\n${NEON_GREEN}[4/5] Injecting Python Libraries...${NC}"
+# 3. PYTHON LIBRARIES
+echo -e "\n${CYAN}[*] Injecting Python Libraries...${NC}"
+# Using --break-system-packages for modern Kali (Python 3.11+)
 pip3 install builtwith --break-system-packages > /dev/null 2>&1
-pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1 &
-wait $!
-progress "Library Injection"
+pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1
+echo -e "${GREEN}    > Python Modules Active.${NC}"
 
-echo -e "\n${NEON_GREEN}[5/5] Configuring Stealth Drivers...${NC}"
-# DIRECT LINK (Stable)
-URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
-wget -q -O driver.tar.gz "$URL"
-tar -xf driver.tar.gz
-chmod +x geckodriver
-sudo mv geckodriver /usr/bin/geckodriver > /dev/null 2>&1
-rm driver.tar.gz
-progress "Driver Setup"
+# 4. GECKODRIVER SETUP (PC / x86_64 VERSION)
+echo -e "\n${CYAN}[*] Configuring Stealth Drivers...${NC}"
 
+# Remove any old/wrong drivers
+sudo rm -f /usr/bin/geckodriver
+
+# Download the PC Version (linux64)
+wget -q -O driver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
+
+if [ -f "driver.tar.gz" ]; then
+    tar -xf driver.tar.gz
+    chmod +x geckodriver
+    sudo mv geckodriver /usr/bin/geckodriver
+    rm driver.tar.gz
+    echo -e "${GREEN}    > Driver Installed Successfully.${NC}"
+else
+    echo -e "${RED}    [!] Driver Download Failed. Check Internet.${NC}"
+fi
+
+# 5. FINAL PERMISSIONS
+chmod +x test.py
 echo -e "\n${NEON_GREEN}=========================================="
-echo -e "   [✓] INSTALLATION SUCCESSFULLY! SYSTEM READY."
-echo -e "   [>] Run CLI: python3 test.py example.com -scan"
+echo -e "   [✓] INSTALATION SUCCESSFULL. SYSTEM READY. "
+echo -e "   [>] Run CLI: python3 test.py <domain> -scan"
 echo -e "   [>] Run GUI: streamlit run gui.py"
 echo -e "==========================================${NC}"
-
