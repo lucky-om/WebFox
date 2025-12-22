@@ -1,88 +1,66 @@
 #!/bin/bash
 
-# COLORS
+# NEON COLORS
 GREEN='\033[0;32m'
+NEON_GREEN='\033[1;32m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# ANIMATION FUNCTION
-animate() {
-    echo -ne "$1 "
-    for i in {1..20}; do
-        echo -ne "█"
-        sleep 0.1
-    done
-    echo -e " ${GREEN}[DONE]${NC}"
+# MATRIX ANIMATION
+matrix_effect() {
+    clear
+    echo -e "${NEON_GREEN}"
+    echo " W E B F O X   P R O T O C O L   I N I T I A T E D "
+    echo -e "${NC}"
+    sleep 0.5
 }
 
-clear
-echo -e "${CYAN}"
-echo "██╗    ██╗███████╗██████╗ ███████╗ ██████╗ ██╗  ██╗"
-echo "██║    ██║██╔════╝██╔══██╗██╔════╝██╔═══██╗╚██╗██╔╝"
-echo "██║ █╗ ██║█████╗  ██████╔╝█████╗  ██║   ██║ ╚███╔╝ "
-echo "██║███╗██║██╔══╝  ██╔══██╗██╔══╝  ██║   ██║ ██╔██╗ "
-echo "╚███╔███╔╝███████╗██████╔╝██║     ╚██████╔╝ ██╔╝ ██╗"
-echo " ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝"
-echo -e "          -- INSTALLATION WIZARD v10.0 --${NC}\n"
+# PROGRESS BAR
+progress() {
+    echo -ne "${CYAN}[*] $1... "
+    for i in {1..20}; do
+        echo -ne "█"
+        sleep 0.02
+    done
+    echo -e " ${NEON_GREEN}[DONE]${NC}"
+}
 
-echo -e "${GREEN}[*] Initializing Environment...${NC}"
-sleep 1
+matrix_effect
 
-# STEP 1: REPOSITORIES
-echo -e "\n${CYAN}[1/4] Updating System Repositories...${NC}"
+echo -e "${NEON_GREEN}[1/5] Updating System Core...${NC}"
 sudo apt update -qq > /dev/null 2>&1 &
-PID=$!
-animate "    Loading Repos"
-wait $PID
+wait $!
+progress "System Update"
 
-# STEP 2: REPAIR PIP & INSTALL TOOLS
-echo -e "\n${CYAN}[2/4] Installing & Repairing Core Tools...${NC}"
+echo -e "\n${NEON_GREEN}[2/5] Repairing Python Environment...${NC}"
 sudo apt install --reinstall -y python3-pip > /dev/null 2>&1
-sudo apt install -y python3 git wget tar curl jq firefox-esr > /dev/null 2>&1 &
-PID=$!
-animate "    Installing Dependencies"
-wait $PID
+progress "PIP Repair"
 
-# STEP 3: LIBRARIES
-echo -e "\n${CYAN}[3/4] Installing Python Libraries...${NC}"
+echo -e "\n${NEON_GREEN}[3/5] Installing Offensive Tools...${NC}"
+sudo apt install -y python3 git wget tar curl jq firefox-esr > /dev/null 2>&1 &
+wait $!
+progress "Installing Dependencies"
+
+echo -e "\n${NEON_GREEN}[4/5] Injecting Python Libraries...${NC}"
 pip3 install builtwith --break-system-packages > /dev/null 2>&1
 pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1 &
-PID=$!
-animate "    Downloading Libraries"
-wait $PID
+wait $!
+progress "Library Injection"
 
-# STEP 4: INSTALL GECKODRIVER (DIRECT LINK)
-echo -e "\n${CYAN}[4/4] Configuring Geckodriver (v0.36.0)...${NC}"
+echo -e "\n${NEON_GREEN}[5/5] Configuring Stealth Drivers...${NC}"
+# DIRECT LINK (Stable)
+URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
+wget -q -O driver.tar.gz "$URL"
+tar -xf driver.tar.gz
+chmod +x geckodriver
+sudo mv geckodriver /usr/bin/geckodriver > /dev/null 2>&1
+rm driver.tar.gz
+progress "Driver Setup"
 
-# DIRECT LINK - No API calls to fail
-DOWNLOAD_URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
-
-# Force remove old driver to prevent conflicts
-sudo rm -f /usr/bin/geckodriver
-rm -f driver.tar.gz
-
-# Download with verbose off (-q) but show errors
-wget -O driver.tar.gz "$DOWNLOAD_URL"
-
-if [ -f "driver.tar.gz" ]; then
-    # Extract
-    tar -xf driver.tar.gz
-    
-    # Install
-    chmod +x geckodriver
-    sudo mv geckodriver /usr/bin/geckodriver
-    rm driver.tar.gz
-    
-    animate "    Finalizing Setup"
-else
-    echo -e "${RED}[!] Download Failed. Check Internet Connection.${NC}"
-    exit 1
-fi
-
-echo -e "\n${GREEN}=========================================="
-echo -e "   [✓] INSTALLATION SUCCESSFUL"
-echo -e "   [✓] PIP REPAIRED & PACKAGES INSTALLED"
-echo -e "   [✓] GECKODRIVER INSTALLED"
-echo -e "   [>] Run: python3 test.py -help"
+echo -e "\n${NEON_GREEN}=========================================="
+echo -e "   [✓] INSTALLATION SUCCESSFULLY! SYSTEM READY."
+echo -e "   [>] Run CLI: python3 test.py example.com -scan"
+echo -e "   [>] Run GUI: streamlit run gui.py"
 echo -e "==========================================${NC}"
+
