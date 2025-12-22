@@ -93,7 +93,7 @@ def main():
         tech_detect.scan(args.domain, save_path)
 
         print(Fore.WHITE + "\n--- [ PHASE 3: DEEP RECON ] ---")
-        print(Fore.YELLOW + "[*] Enumerating Subdomains...")
+        print(Fore.YELLOW + "[*] Enumerating Subdomains (Wait Mode)...")
         subdomain.enumerate(args.domain, save_path)
         
         print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
@@ -109,30 +109,10 @@ def main():
         js_scan.scan(args.domain, save_path)
 
         print(Fore.WHITE + "\n--- [ PHASE 5: VISUAL SURVEILLANCE ] ---")
-        print(Fore.YELLOW + "[*] Capturing Evidence ...")
+        print(Fore.YELLOW + "[*] Capturing Evidence (High Timeout)...")
         screenshot.capture(args.domain, save_path)
 
         type_effect("\n[✓] MISSION ACCOMPLISHED. REPORT GENERATED.", Fore.GREEN)
-
-if __name__ == "__main__":
-    main()
-    # Ports - 100 Threads
-        print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
-        portscanner.scan(args.domain, args.threads, save_path)
-
-        print(Fore.WHITE + "\n--- [ WEB CRAWLER ] ---")
-        loading_effect("Robots.txt")
-        robots.scan(args.domain, save_path)
-        sitemap.scan(args.domain, save_path)
-        
-        loading_effect("JS Analysis")
-        js_scan.scan(args.domain, save_path)
-
-        print(Fore.WHITE + "\n--- [ VISUAL SURVEILLANCE ] ---")
-        print(Fore.YELLOW + "[*] Taking Full-Res Screenshots (Please Wait)...")
-        screenshot.capture(args.domain, save_path)
-
-        print(Fore.GREEN + Style.BRIGHT + f"\n[✓] MISSION ACCOMPLISHED. REPORT GENERATED.")
 
 if __name__ == "__main__":
     main()
