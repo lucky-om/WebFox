@@ -9,12 +9,10 @@ from tqdm import tqdm
 init(autoreset=True)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-try:
-    from core.basic import live_check, subdomain, portscanner, screenshot
-    from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
-    from core.crawl import robots, sitemap, js_scan
-except ImportError:
-    pass
+# --- FIXED IMPORTS (No try/except block) ---
+from core.basic import live_check, subdomain, portscanner, screenshot
+from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
+from core.crawl import robots, sitemap, js_scan
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -33,15 +31,14 @@ def loading_effect(task_name):
 def banner():
     clear()
     print(Fore.RED + Style.BRIGHT + r"""
- █     █░▓█████  ▄▄▄▄    █████▒▒█████  ▒██   ██▒
-▓█░ █ ░█░▓█   ▀ ▓█████▄▓██   ▒▒██▒  ██▒▒▒ █ █ ▒░
-▒█░ █ ░█░▒███   ▒██▒ ▄██▒████ ░▒██░  ██▒░░  █   ░
-░█░ █ ░█░▒▓█  ▄ ▒██░█▀  ░▓█▒  ░▒██   ██░ ░ █ █ ▒ 
-░░██▒██▓ ░▒████▒░▓█  ▀█▓░▒█░   ░ ████▓▒░▒██▒ ▒██▒
-░ ▓░▒ ▒  ░░ ▒░ ░░▒▓███▀▒ ▒ ░   ░ ▒░▒░▒░ ▒▒ ░ ░▓ ░
-  ▒ ░ ░   ░ ░  ░▒░▒   ░  ░       ░ ▒ ▒░ ░░   ░▒ ░
-    ░       ░    ░    ░          ░ ░ ░   ░    ░  
-               ░                     ░           
+$$\      $$\           $$\       $$$$$$$$\                  
+$$ | $\  $$ |          $$ |      $$  _____|                 
+$$ |$$$\ $$ | $$$$$$\  $$$$$$$\  $$ |    $$$$$$\  $$\   $$\ 
+$$ $$ $$\$$ |$$  __$$\ $$  __$$\ $$$$$\ $$  __$$\ \$$\ $$  |
+$$$$  _$$$$ |$$$$$$$$ |$$ |  $$ |$$  __|$$ /  $$ | \$$$$  / 
+$$$  / \$$$ |$$   ____|$$ |  $$ |$$ |   $$ |  $$ | $$  $$<  
+$$  /   \$$ |\$$$$$$$\ $$$$$$$  |$$ |   \$$$$$$  |$$  /\$$\ 
+\__/     \__| \_______|\_______/ \__|    \______/ \__/  \__|
     """ + Fore.RESET)
     print(f"{Fore.CYAN}    Version   : {Fore.WHITE}v10.0 (Ultimate Edition)")
     print(f"{Fore.CYAN}    Dev       : {Fore.WHITE}Lucky")
@@ -125,4 +122,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
