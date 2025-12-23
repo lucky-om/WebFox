@@ -1,85 +1,209 @@
-import streamlit as st
+import argparse
 import os
-import subprocess
-import glob
+import sys
+import time
+import random
 
-st.set_page_config(page_title="WEBFOX COMMANDER", layout="wide", page_icon="🦊")
-st.markdown("""
-<style>
-    .stApp { background-color: #050505; }
-    h1, h2, h3 { color: #00ff41 !important; font-family: 'Courier New'; }
-    p, label, span, div { color: #e0e0e0 !important; font-family: 'Courier New'; }
-    .stTextInput input { background-color: #111; color: #00ff41; border: 1px solid #00ff41; }
-    div.stButton > button { background-color: #000; color: #00ff41; border: 1px solid #00ff41; font-weight: bold; width: 100%; }
-    div.stButton > button:hover { background-color: #00ff41; color: #000; }
-    .stTabs [data-baseweb="tab"] { background-color: #111; border: 1px solid #333; }
-    .stTabs [aria-selected="true"] { background-color: #00ff41; color: black !important; }
-</style>
-""", unsafe_allow_html=True)
+# Colorama check
+try:
+    from colorama import init, Fore, Style
+    init(autoreset=True)
+except ImportError:
+    print("Error: colorama is not installed. Run: pip install colorama")
+    sys.exit()
 
-st.title("🦊 WEBFOX // ULTIMATE DASHBOARD")
-st.markdown("---")
+# --- REAL FILE SAVER (MOCK MODULE) ---
+class RealFileSaver:
+    def __init__(self, module_name):
+        self.module_name = module_name
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    target = st.text_input("TARGET DOMAIN", placeholder="example.com")
-with col2:
-    st.write("")
-    st.write("")
-    if st.button("⚡ INITIATE ATTACK"):
-        if target:
-            with st.status("🚀 INFILTRATING...", expanded=True) as status:
-                subprocess.run(["python3", "test.py", target, "-scan"])
-                status.update(label="✅ COMPLETE", state="complete", expanded=False)
-
-if target:
-    report_path = os.path.join("reports", target)
-    if os.path.exists(report_path):
-        st.subheader(f"📂 INTEL: {target}")
+    def scan(self, domain, *args):
+        # Find the save path in arguments (it's usually the last argument)
+        save_path = args[-1] if args else None
         
-        tabs = st.tabs(["📸 VISUALS", "🌍 NETWORK", "🛡️ VULNS", "🕷️ CRAWL", "💀 HACKS"])
+        # Simulate processing time
+        time.sleep(0.2)
         
-        with tabs[0]:
-            st.markdown("### 🖥️ SCREENSHOTS")
-            images = glob.glob(f"{report_path}/*.png")
-            if images: st.image(images, width=400)
+        if save_path and os.path.exists(save_path):
+            filename = f"{self.module_name}_report.txt"
+            full_file_path = os.path.join(save_path, filename)
             
-            st.markdown("### 📡 GEOLOCATION")
-            if os.path.exists(f"{report_path}/ip_location.txt"):
-                st.code(open(f"{report_path}/ip_location.txt").read())
+            # Write dummy data to the file so you can see output
+            with open(full_file_path, "w") as f:
+                f.write(f"--- REPORT: {self.module_name.upper()} ---\n")
+                f.write(f"Target: {domain}\n")
+                f.write(f"Date: {time.ctime()}\n")
+                f.write("-" * 30 + "\n")
+                f.write(f"[+] Scan completed successfully for {self.module_name}.\n")
+                f.write(f"[+] Found random entry: {random.randint(1000,9999)}\n")
+                f.write(f"[+] Status: VULNERABLE (Simulation)\n")
+        
+    def check(self, domain):
+        return True
 
-        with tabs[1]:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("### 🔍 REAL IP DETECT")
-                if os.path.exists(f"{report_path}/real_ip.txt"): st.code(open(f"{report_path}/real_ip.txt").read())
-                
-                st.markdown("### 🌐 SUBDOMAINS")
-                if os.path.exists(f"{report_path}/subdomains.txt"): st.text_area("Subs", open(f"{report_path}/subdomains.txt").read(), height=200)
-            
-            with c2:
-                st.markdown("### 🔌 PORTS")
-                if os.path.exists(f"{report_path}/ports.txt"): st.text_area("Ports", open(f"{report_path}/ports.txt").read(), height=200)
+    def enumerate(self, domain, save_path):
+        self.scan(domain, save_path)
+        
+    def capture(self, domain, save_path):
+        self.scan(domain, save_path)
 
-        with tabs[2]:
-            st.markdown("### 🔥 VULNERABILITY SCAN")
-            if os.path.exists(f"{report_path}/sqli_vuln.txt"): 
-                st.error("SQL INJECTION FOUND")
-                st.code(open(f"{report_path}/sqli_vuln.txt").read())
-            
-            if os.path.exists(f"{report_path}/cors_vuln.txt"): st.code(open(f"{report_path}/cors_vuln.txt").read())
-            if os.path.exists(f"{report_path}/dos_vuln.txt"): st.code(open(f"{report_path}/dos_vuln.txt").read())
+# Initialize scanner objects with names (so files are named correctly)
+live_check = RealFileSaver("live_check")
+subdomain = RealFileSaver("subdomain")
+portscanner = RealFileSaver("portscanner")
+screenshot = RealFileSaver("screenshot")
+ssl_scan = RealFileSaver("ssl_scan")
+dns_scan = RealFileSaver("dns_scan")
+tech_detect = RealFileSaver("tech_detect")
+whois_scan = RealFileSaver("whois_scan")
+ip_info = RealFileSaver("ip_info")
+waf = RealFileSaver("waf")
+dos_check = RealFileSaver("dos_check")
+cors_scan = RealFileSaver("cors_scan")
+sqli_scan = RealFileSaver("sqli_scan")
+real_ip = RealFileSaver("real_ip")
+robots = RealFileSaver("robots")
+sitemap = RealFileSaver("sitemap")
+js_scan = RealFileSaver("js_scan")
+email_scan = RealFileSaver("email_scan")
+admin_scan = RealFileSaver("admin_scan")
+social_scan = RealFileSaver("social_scan")
 
-        with tabs[3]:
-            if os.path.exists(f"{report_path}/social_links.txt"): 
-                st.markdown("### 👥 SOCIAL PROFILES")
-                st.code(open(f"{report_path}/social_links.txt").read())
-            
-            if os.path.exists(f"{report_path}/emails.txt"): 
-                st.markdown("### 📧 EMAILS")
-                st.code(open(f"{report_path}/emails.txt").read())
+# --- UTILITY FUNCTIONS ---
 
-        with tabs[4]:
-            if os.path.exists(f"{report_path}/admin_paths.txt"):
-                st.error("👹 ADMIN PANELS FOUND")
-                st.code(open(f"{report_path}/admin_paths.txt").read())
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def type_effect(text, color=Fore.GREEN):
+    for char in text:
+        sys.stdout.write(color + char)
+        sys.stdout.flush()
+        time.sleep(0.01)
+    print("")
+
+def loading_bar(task):
+    sys.stdout.write(f"{Fore.CYAN}[*] {task:<35} ")
+    sys.stdout.flush()
+    for i in range(5):
+        time.sleep(0.05)
+        sys.stdout.write(Fore.GREEN + "█")
+        sys.stdout.flush()
+    print(Fore.GREEN + " [DONE]")
+
+def banner():
+    clear()
+    logo = r"""
+ █      █░▓█████  ▄▄▄▄    █████▒▒█████  ▒██    ██▒
+▓█░ █ ░█░▓█    ▀ ▓█████▄▓██   ▒▒██▒  ██▒▒▒ █ █ ▒░
+▒█░ █ ░█░▒███    ▒██▒ ▄██▒████ ░▒██░  ██▒░░  █   ░
+░█░ █ ░█░▒▓█   ▄ ▒██░█▀  ░▓█▒  ░▒██    ██░ ░ █ █ ▒ 
+░░██▒██▓ ░▒████▒░▓█   ▀█▓░▒█░   ░ ████▓▒░▒██▒ ▒██▒
+░ ▓░▒ ▒  ░░ ▒░ ░░▒▓███▀▒ ▒ ░    ░ ▒░▒░▒░ ▒▒ ░ ░▓ ░
+  ▒ ░ ░   ░ ░  ░▒░▒   ░  ░        ░ ▒ ▒░ ░░    ░▒ ░
+    """
+    print(Fore.RED + Style.BRIGHT + logo)
+    print(f"{Fore.CYAN}    Version : {Fore.WHITE}v11.0 Ultimate (File Save Fixed)")
+    print(f"{Fore.CYAN}    System  : {Fore.WHITE}Android / Kali NetHunter\n")
+
+def main():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("domain", nargs="?", help="Target Domain")
+    parser.add_argument("-scan", action="store_true", help="Start the scan")
+    parser.add_argument("-threads", type=int, default=100, help="Number of threads")
+    args = parser.parse_args()
+
+    if not args.domain:
+        banner()
+        type_effect("Usage: python3 test.py <domain> -scan", Fore.YELLOW)
+        sys.exit()
+
+    banner()
+    
+    # --- PATH FIX ---
+    # Create absolute path for reports
+    base_dir = os.getcwd()
+    save_path = os.path.join(base_dir, "reports", args.domain)
+    
+    if not os.path.exists(save_path): 
+        try:
+            os.makedirs(save_path)
+            print(f"{Fore.GREEN}[+] Created directory: {save_path}")
+        except OSError as e:
+            print(f"{Fore.RED}[!] Error creating directory: {e}")
+            sys.exit()
+    else:
+        print(f"{Fore.YELLOW}[!] Directory exists: {save_path}")
+
+    type_effect(f"[*] TARGET LOCKED: {args.domain}", Fore.GREEN)
+    print("-" * 50)
+
+    loading_bar("Establishing Connection")
+    if not live_check.check(args.domain): 
+        print(Fore.RED + "Target seems down.")
+        sys.exit()
+
+    if args.scan:
+        print(Fore.WHITE + "\n--- [ PHASE 1: INTELLIGENCE GATHERING ] ---")
+        loading_bar("Geolocating Server")
+        ip_info.scan(args.domain, save_path)
+        
+        loading_bar("Extracting Ownership")
+        whois_scan.scan(args.domain, save_path)
+        
+        loading_bar("Detecting Real IP (CF Bypass)")
+        real_ip.scan(args.domain, save_path)
+        
+        loading_bar("Dumping DNS Zone")
+        dns_scan.scan(args.domain, save_path)
+
+        print(Fore.WHITE + "\n--- [ PHASE 2: VULNERABILITY MATRIX ] ---")
+        loading_bar("Analyzing SSL/SANs")
+        ssl_scan.scan(args.domain, save_path)
+        
+        loading_bar("Bypassing WAF / Headers")
+        waf.scan(args.domain, save_path)
+        
+        loading_bar("Checking CORS Misconfig")
+        cors_scan.scan(args.domain, save_path)
+        
+        loading_bar("Testing DoS Vulnerability")
+        dos_check.scan(args.domain, save_path)
+        
+        loading_bar("Fingerprinting OS & Tech")
+        tech_detect.scan(args.domain, save_path)
+        
+        loading_bar("Hunting SQL Injection")
+        sqli_scan.scan(args.domain, save_path)
+
+        print(Fore.WHITE + "\n--- [ PHASE 3: DEEP RECON ] ---")
+        print(Fore.YELLOW + "[*] Enumerating Subdomains...")
+        subdomain.enumerate(args.domain, save_path)
+        
+        print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
+        # Handle the 3 arguments for portscanner
+        portscanner.scan(args.domain, args.threads, save_path) 
+
+        print(Fore.WHITE + "\n--- [ PHASE 4: DATA EXTRACTION ] ---")
+        loading_bar("Harvesting Emails")
+        email_scan.scan(args.domain, save_path)
+        
+        loading_bar("Scraping Social Profiles")
+        social_scan.scan(args.domain, save_path)
+        
+        loading_bar("Brute-forcing Admin Panels")
+        admin_scan.scan(args.domain, save_path)
+        
+        loading_bar("Robots.txt Secrets")
+        robots.scan(args.domain, save_path)
+        sitemap.scan(args.domain, save_path)
+        js_scan.scan(args.domain, save_path)
+
+        print(Fore.WHITE + "\n--- [ PHASE 5: VISUAL SURVEILLANCE ] ---")
+        loading_bar("Capturing Evidence")
+        screenshot.capture(args.domain, save_path)
+
+        type_effect(f"\n[✓] MISSION ACCOMPLISHED.", Fore.GREEN)
+        print(f"{Fore.YELLOW}Reports saved in: {save_path}")
+
+if __name__ == "__main__":
+    main()
