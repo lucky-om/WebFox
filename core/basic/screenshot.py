@@ -1,43 +1,103 @@
-import time, os, re, requests
+import time
+import os
+import re
+import requests
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from colorama import Fore
 
 def capture(domain, save_path):
-    print(Fore.YELLOW + "[*] Starting Visual Surveillance (High Timeout)...")
-    os.environ['MOZ_HEADLESS'] = '1'
-    opts = Options()
-    opts.add_argument("--headless")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--window-size=1920,1080")
+    print(Fore.CYAN + f"[*]  Capturing snapshots from target...")
     
-    if os.path.exists("/usr/bin/firefox-esr"): opts.binary_location = "/usr/bin/firefox-esr"
-
     driver = None
     try:
-        driver = webdriver.Firefox(options=opts)
-        # 120 SECONDS PAGE LOAD TIMEOUT
-        driver.set_page_load_timeout(120)
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--width=1920")
+        options.add_argument("--height=1080")
+
+        if os.path.exists("/usr/bin/firefox-esr"):
+            options.binary_location = "/usr/bin/firefox-esr"
+        elif os.path.exists("/usr/bin/firefox"):
+            options.binary_location = "/usr/bin/firefox"
+
+        service_path = None
+        possible_paths = ["/usr/bin/geckodriver", "/usr/local/bin/geckodriver", "./geckodriver"]
+        for p in possible_paths:
+            if os.path.exists(p):
+                service_path = p
+                break
         
-        urls = [f"http://{domain}"]
+        if service_path:
+            service = Service(service_path)
+            driver = webdriver.Firefox(options=options, service=service)
+        else:
+            driver = webdriver.Firefox(options=options)
+
+        driver.set_page_load_timeout(30)
+
+        candidates = set()
+        base_url = f"http://{domain}"
+        candidates.add(base_url)
+
         try:
-            # NO TIMEOUT ON REQUESTS
-            html = requests.get(urls[0]).text
-            links = re.findall(r'href=["\'](https?://' + domain + r'/[^"\']*)["\']', html)
-            urls += list(set(links))[:8]
+            r = requests.get(f"https://crt.sh/?q=%.{domain}&output=json", timeout=10)
+            if r.status_code == 200:
+                for entry in r.json()[:50]: 
+                    sub = entry['name_value'].split('\n')[0]
+                    if not "*" in sub:
+                        candidates.add(f"http://{sub}")
         except: pass
 
-        for i, u in enumerate(urls):
+        try:
+            html = requests.get(base_url, timeout=5).text
+            links = re.findall(r'href=["\'](https?://[^"\']+)["\']', html)
+            for l in links:
+                if domain in l:
+                    candidates.add(l)
+        except: pass
+
+        scored_urls = []
+        keywords = {
+            "admin": 50, "login": 40, "dashboard": 30, 
+            "portal": 30, "vpn": 25, "conf": 20, 
+            "panel": 20, "account": 15, "upload": 10
+        }
+
+        for url in candidates:
+            score = 1 
+            for word, points in keywords.items():
+                if word in url.lower():
+                    score += points
+            scored_urls.append((score, url))
+
+        scored_urls.sort(key=lambda x: x[0], reverse=True)
+        top_targets = [x[1] for x in scored_urls[:5]]
+
+        print(Fore.BLUE + f"    > Identified {len(candidates)} pages. Selecting Top {len(top_targets)} important ones.")
+
+        for i, url in enumerate(top_targets):
             try:
-                driver.get(u)
+                driver.get(url)
                 time.sleep(2)
-                name = u.split("/")[-1] or "home"
-                driver.save_screenshot(f"{save_path}/{name[:20]}.png")
-                print(Fore.BLUE + f"    > Captured: {name}.png")
-            except: pass
-            
-    except Exception as e: print(Fore.RED + f"    > Error: {e}")
-    finally: 
-        if driver: driver.quit()
+                
+                clean_name = url.replace("http://","").replace("https://","").replace("/","_").replace(":","")[:40]
+                filename = f"{save_path}/priority_{i+1}_{clean_name}.png"
+                
+                driver.save_screenshot(filename)
+                print(Fore.GREEN + f"    > [{i+1}/5] Captured: {clean_name}.png")
+            except:
+                pass
+
+        print(Fore.GREEN + f"[+] Snapshot Captured Successfully.")
+
+    except Exception as e:
+        print(Fore.RED + f"[-] Screenshot module error: {e}")
+
+    finally:
+        if driver:
+            driver.quit()
