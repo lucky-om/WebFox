@@ -29,7 +29,7 @@ echo "██║ █╗ ██║█████╗  ██████╔╝█�
 echo "██║███╗██║██╔══╝  ██╔══██╗██╔══╝  ██║   ██║ ██╔██╗ "
 echo "╚███╔███╔╝███████╗██████╔╝██║     ╚██████╔╝ ██╔╝ ██╗"
 echo " ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝"
-echo -e "           -- ULTIMATE SETUP WIZARD v10.0 --${NC}\n"
+echo -e "             -- WEBFOX SETUP WIZARD --${NC}\n"
 
 if [ "$EUID" -ne 0 ]; then 
     echo -e "${RED}[!] Please run as root (sudo ./install.sh)${NC}"
@@ -80,4 +80,4 @@ echo -e "   [✓] SYSTEM UPDATE COMPLETE"
 echo -e "   [✓] DEPENDENCIES INSTALLED"
 echo -e "   [✓] ENVIRONMENT READY"
 echo -e "==========================================${NC}"
-echo -e "${YELLOW}   Usage: python3 main.py -help${NC}\n"
+echo -e "${YELLOW}   Usage: python3 test.py -help${NC}\n"
