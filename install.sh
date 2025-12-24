@@ -1,63 +1,83 @@
 #!/bin/bash
 
-# --- NEON THEME CONFIG ---
 GREEN='\033[0;32m'
-NEON_GREEN='\033[1;32m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+YELLOW='\033[1;33m'
+NC='\033[0m'
 
-# --- MATRIX ANIMATION ---
-matrix_effect() {
-    clear
-    echo -e "${NEON_GREEN}"
-    echo " W E B F O X   P R O T O C O L   I N I T I A T E D "
-    echo -e "${NC}"
-    sleep 0.5
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    while ps -p $pid > /dev/null 2>&1; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+    echo -e "${GREEN}[DONE]${NC}"
 }
 
-matrix_effect
+clear
+echo -e "${CYAN}"
+echo "██╗     ██╗███████╗██████╗ ███████╗ ██████╗ ██╗  ██╗"
+echo "██║     ██║██╔════╝██╔══██╗██╔════╝██╔═══██╗╚██╗██╔╝"
+echo "██║ █╗ ██║█████╗  ██████╔╝█████╗  ██║   ██║ ╚███╔╝ "
+echo "██║███╗██║██╔══╝  ██╔══██╗██╔══╝  ██║   ██║ ██╔██╗ "
+echo "╚███╔███╔╝███████╗██████╔╝██║     ╚██████╔╝ ██╔╝ ██╗"
+echo " ╚══╝╚══╝ ╚══════╝╚═════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝"
+echo -e "           -- ULTIMATE SETUP WIZARD v10.0 --${NC}\n"
 
-# 1. SYSTEM UPDATE
-echo -e "${CYAN}[*] Updating System Core...${NC}"
-sudo apt update -qq > /dev/null 2>&1
-echo -e "${GREEN}    > System Core Updated.${NC}"
+if [ "$EUID" -ne 0 ]; then 
+    echo -e "${RED}[!] Please run as root (sudo ./install.sh)${NC}"
+    exit 1
+fi
 
-# 2. INSTALL DEPENDENCIES
-echo -e "\n${CYAN}[*] Installing Offensive Tools...${NC}"
-sudo apt install -y python3 python3-pip git wget tar curl jq firefox-esr > /dev/null 2>&1
-echo -e "${GREEN}    > Dependencies Installed.${NC}"
+echo -e "${YELLOW}[*] Initializing System Configuration...${NC}\n"
 
-# 3. PYTHON LIBRARIES
-echo -e "\n${CYAN}[*] Injecting Python Libraries...${NC}"
-# Using --break-system-packages for modern Kali (Python 3.11+)
+echo -e "${CYAN}[1/4] Updating System Repositories...${NC}"
+echo -ne "    > Synchronizing package lists"
+sudo apt-get update -qq > /dev/null 2>&1 &
+spinner $!
+
+echo -e "\n${CYAN}[2/4] Installing Core Dependencies...${NC}"
+echo -ne "    > Installing Python3, Pip & Firefox"
+sudo apt-get install -y python3 python3-pip python3-venv git wget curl unzip firefox-esr > /dev/null 2>&1 &
+spinner $!
+
+echo -e "\n${CYAN}[3/4] Installing Python Libraries...${NC}"
+echo -ne "    > Installing required modules"
 pip3 install builtwith --break-system-packages > /dev/null 2>&1
-pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1
-echo -e "${GREEN}    > Python Modules Active.${NC}"
+pip3 install -r requirements.txt --break-system-packages > /dev/null 2>&1 &
+spinner $!
 
-# 4. GECKODRIVER SETUP (PC / x86_64 VERSION)
-echo -e "\n${CYAN}[*] Configuring Stealth Drivers...${NC}"
+echo -e "\n${CYAN}[4/4] Configuring Geckodriver (v0.36.0)...${NC}"
+echo -ne "    > Downloading driver binary"
 
-# Remove any old/wrong drivers
-sudo rm -f /usr/bin/geckodriver
+DOWNLOAD_URL="https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
 
-# Download the PC Version (linux64)
-wget -q -O driver.tar.gz "https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz"
+rm -f geckodriver-v0.36.0-linux64.tar.gz
+rm -f /usr/bin/geckodriver
+
+wget -q --show-progress -O driver.tar.gz "$DOWNLOAD_URL"
 
 if [ -f "driver.tar.gz" ]; then
     tar -xf driver.tar.gz
     chmod +x geckodriver
-    sudo mv geckodriver /usr/bin/geckodriver
+    mv geckodriver /usr/bin/geckodriver
     rm driver.tar.gz
-    echo -e "${GREEN}    > Driver Installed Successfully.${NC}"
+    echo -e "${GREEN}    > Driver Installed Successfully${NC}"
 else
-    echo -e "${RED}    [!] Driver Download Failed. Check Internet.${NC}"
+    echo -e "${RED}    [!] Download Failed. Check connection.${NC}"
+    exit 1
 fi
 
-# 5. FINAL PERMISSIONS
-chmod +x test.py
-echo -e "\n${NEON_GREEN}=========================================="
-echo -e "   [✓] INSTALATION SUCCESSFULL. SYSTEM READY. "
-echo -e "   [>] Run CLI: python3 test.py <domain> -scan"
-echo -e "   [>] Run GUI: streamlit run gui.py"
+echo -e "\n${GREEN}=========================================="
+echo -e "   [✓] SYSTEM UPDATE COMPLETE"
+echo -e "   [✓] DEPENDENCIES INSTALLED"
+echo -e "   [✓] ENVIRONMENT READY"
 echo -e "==========================================${NC}"
+echo -e "${YELLOW}   Usage: python3 main.py -help${NC}\n"
