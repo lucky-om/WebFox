@@ -2,13 +2,28 @@ import requests
 from colorama import Fore
 
 def scan(domain, save_path):
-    try:
-        # NO TIMEOUT
-        r = requests.get(f"http://{domain}/robots.txt")
-        if r.status_code == 200:
-            with open(f"{save_path}/robots.txt", "w") as f: f.write(r.text)
-            secrets = [line for line in r.text.split('\n') if any(k in line for k in ['admin','login','backup'])]
-            if secrets:
-                print(Fore.RED + f"    [!] FOUND {len(secrets)} SENSITIVE PATHS")
-                with open(f"{save_path}/robots_secrets.txt", "w") as f: f.write("\n".join(secrets))
-    except: pass
+    print(Fore.CYAN + f"[*] Searching for robots.txt on {domain}...")
+    
+    found = False
+    content = ""
+    protocols = ["https", "http"]
+    
+    for proto in protocols:
+        try:
+            url = f"{proto}://{domain}/robots.txt"
+            r = requests.get(url, timeout=10)
+            
+            if r.status_code == 200 and "User-agent" in r.text:
+                print(Fore.GREEN + f"    > Found: {url}")
+                content = r.text
+                found = True
+                break
+        except:
+            continue
+
+    if found:
+        with open(f"{save_path}/robots.txt", "w") as f:
+            f.write(content)
+        print(Fore.GREEN + f"[+] Robots.txt saved successfully.")
+    else:
+        print(Fore.YELLOW + f"[-] Robots.txt not found.")
