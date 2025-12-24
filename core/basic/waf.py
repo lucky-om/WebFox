@@ -28,10 +28,10 @@ def scan(domain, save_path):
     try:
         url = f"http://{domain}"
         try:
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=30)
         except:
             url = f"https://{domain}"
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=30)
 
         headers = str(r.headers).lower()
         cookies = str(r.cookies.get_dict()).lower()
