@@ -1,41 +1,46 @@
-import requests, json, socket, threading
-from queue import Queue
+import requests
+import socket
+import concurrent.futures
 from colorama import Fore
 
 def enumerate(domain, save_path):
-    print(Fore.YELLOW + "[*] Fetching & Verifying Subdomains...")
-    found = set()
-    live = []
-    
+    print(Fore.CYAN + f"[*] Enumerating and checking subdomains for {domain}...")
     try:
         url = f"https://crt.sh/?q=%.{domain}&output=json"
-        # NO TIMEOUT on requests
-        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}).json()
-        for e in r: found.add(e['name_value'])
-    except: pass
-    
-    def check(sub):
-        try:
-            # Standard socket timeout (not strict)
-            ip = socket.gethostbyname(sub)
-            live.append(f"{sub} ({ip})")
-            print(Fore.GREEN + f"    [+] Alive: {sub}")
-        except: pass
+        data = requests.get(url, timeout=40).json()
+        
+        subs = set()
+        for entry in data:
+            name_value = entry['name_value']
+            if "\n" in name_value:
+                subs.update(name_value.split("\n"))
+            else:
+                subs.add(name_value)
 
-    q = Queue()
-    for s in found: q.put(s)
-    
-    def worker():
-        while not q.empty():
-            check(q.get())
-            q.task_done()
+        live_subs = []
+        
+        def check_live(sub):
+            try:
+                socket.gethostbyname(sub)
+                return sub
+            except:
+                return None
 
-    threads = [threading.Thread(target=worker) for _ in range(20)]
-    for t in threads: t.start()
-    for t in threads: t.join()
-    
-    with open(f"{save_path}/subdomains.txt", "w") as f:
-        f.write(f"Total Found: {len(found)}\n")
-        f.write(f"Active Found: {len(live)}\n\n")
-        f.write("\n".join(live))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+            results = executor.map(check_live, subs)
+            for result in results:
+                if result:
+                    live_subs.append(result)
 
+        with open(f"{save_path}/subdomains_all.txt", "w") as f:
+            for s in subs:
+                f.write(s + "\n")
+
+        with open(f"{save_path}/subdomains_live.txt", "w") as f:
+            for s in live_subs:
+                f.write(s + "\n")
+                
+        print(Fore.GREEN + f"[+] Found {len(subs)} total subdomains ({len(live_subs)} active)")
+
+    except:
+        pass
