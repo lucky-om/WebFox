@@ -2,181 +2,122 @@ import argparse
 import os
 import sys
 import time
-import random
+from colorama import init, Fore, Style
 
-# Try to import colorama, handle if missing
-try:
-    from colorama import init, Fore, Style
-    init(autoreset=True)
-except ImportError:
-    print("Error: colorama is not installed. Run: pip install colorama")
-    sys.exit()
+init(autoreset=True)
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# --- MOCK MODULES (Placeholders for missing files) ---
-# Since we don't have the 'core' folder, we simulate the scanning functions here.
-class MockScanner:
-    def scan(self, domain, save_path):
-        time.sleep(0.5) # Simulate work
-        pass
-
-    def check(self, domain):
-        return True
-
-    def enumerate(self, domain, save_path):
-        time.sleep(0.5)
-        
-    def capture(self, domain, save_path):
-        time.sleep(0.5)
-
-# Initialize placeholder objects
-live_check = MockScanner()
-subdomain = MockScanner()
-portscanner = MockScanner() # Note: Real portscanner needs 'threads' arg, handled below
-screenshot = MockScanner()
-ssl_scan = MockScanner()
-dns_scan = MockScanner()
-tech_detect = MockScanner()
-whois_scan = MockScanner()
-ip_info = MockScanner()
-waf = MockScanner()
-dos_check = MockScanner()
-cors_scan = MockScanner()
-sqli_scan = MockScanner()
-real_ip = MockScanner()
-robots = MockScanner()
-sitemap = MockScanner()
-js_scan = MockScanner()
-email_scan = MockScanner()
-admin_scan = MockScanner()
-social_scan = MockScanner()
-
-# --- UTILITY FUNCTIONS ---
+from core.basic import live_check, subdomain, portscanner, screenshot
+from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
+from core.crawl import robots, sitemap, js_scan
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def type_effect(text, color=Fore.GREEN):
-    for char in text:
-        sys.stdout.write(color + char)
-        sys.stdout.flush()
-        time.sleep(0.01)
-    print("")
-
-def loading_bar(task):
-    sys.stdout.write(f"{Fore.CYAN}[*] {task:<35} ")
+def loading_effect(task_name):
+    sys.stdout.write(f"{Fore.CYAN}[*] {task_name:<25} ")
     sys.stdout.flush()
-    for i in range(5):
-        time.sleep(0.1) # Simulate processing time
-        sys.stdout.write(Fore.GREEN + "█")
+    chars = ["|", "/", "-", "\\"]
+    for i in range(15):
+        time.sleep(0.05)
+        sys.stdout.write(f"\b{chars[i % 4]}")
         sys.stdout.flush()
-    print(Fore.GREEN + " [DONE]")
+    sys.stdout.write(f"\b{Fore.GREEN}[DONE]{Fore.RESET}\n")
 
 def banner():
     clear()
-    logo = r"""
- █      █░▓█████  ▄▄▄▄    █████▒▒█████  ▒██    ██▒
-▓█░ █ ░█░▓█    ▀ ▓█████▄▓██   ▒▒██▒  ██▒▒▒ █ █ ▒░
-▒█░ █ ░█░▒███    ▒██▒ ▄██▒████ ░▒██░  ██▒░░  █   ░
-░█░ █ ░█░▒▓█   ▄ ▒██░█▀  ░▓█▒  ░▒██    ██░ ░ █ █ ▒ 
-░░██▒██▓ ░▒████▒░▓█   ▀█▓░▒█░   ░ ████▓▒░▒██▒ ▒██▒
-░ ▓░▒ ▒  ░░ ▒░ ░░▒▓███▀▒ ▒ ░    ░ ▒░▒░▒░ ▒▒ ░ ░▓ ░
-  ▒ ░ ░   ░ ░  ░▒░▒   ░  ░        ░ ▒ ▒░ ░░    ░▒ ░
-    """
-    print(Fore.RED + Style.BRIGHT + logo)
-    print(f"{Fore.CYAN}    Version : {Fore.WHITE}v11.0 Ultimate (Standalone Fix)")
-    print(f"{Fore.CYAN}    System  : {Fore.WHITE}Android / Kali NetHunter\n")
+    print(Fore.RED + Style.BRIGHT + r"""
+$$\       $$\       $$$$$$$$\                  
+$$ | $\  $$ |       $$  _____|                 
+$$ |$$$\ $$ |$$$$$$\$$ |      $$$$$$\  $$\   $$\ 
+$$ $$ $$\$$ |$$  __$$\$$$$$\ $$  __$$\ \$$\ $$  |
+$$$$  _$$$$ |$$$$$$$$ |$$  __|$$ /  $$ | \$$$$  / 
+$$$  / \$$$ |$$   ____|$$ |   $$ |  $$ | $$  $$<  
+$$  /   \$$ |\$$$$$$$\ $$ |   \$$$$$$  |$$  /\$$\ 
+\__/     \__| \_______|\__|    \______/ \__/  \__|
+    """ + Fore.RESET)
+    print(f"{Fore.CYAN}    Version     : {Fore.WHITE}v10.0 (Ultimate Edition)")
+    print(f"{Fore.CYAN}    Dev         : {Fore.WHITE}Lucky")
+    print(f"{Fore.CYAN}    System      : {Fore.WHITE}Kali Linux (x64) - No Limit Mode\n")
+
+def help_menu():
+    banner()
+    print(Fore.YELLOW + " [ COMMAND CENTER ]")
+    print(Fore.WHITE + " ------------------------------------------------")
+    print(f" {Fore.GREEN}python3 test.py <domain> -scan    {Fore.WHITE}|  Full Recon (12 Modules)")
+    print(f" {Fore.GREEN}python3 test.py -help            {Fore.WHITE}|  Show Help Menu")
+    print(f"\n {Fore.YELLOW} [ EXAMPLES ]")
+    print(f" {Fore.WHITE} python3 test.py google.com -scan")
+    sys.exit()
 
 def main():
+    if "-help" in sys.argv: help_menu()
+
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("domain", nargs="?", help="Target Domain")
-    parser.add_argument("-scan", action="store_true", help="Start the scan")
-    parser.add_argument("-threads", type=int, default=100, help="Number of threads")
+    parser.add_argument("domain", nargs="?", help="Target")
+    parser.add_argument("-scan", action="store_true")
+    parser.add_argument("-threads", type=int, default=100)
     args = parser.parse_args()
 
-    if not args.domain:
-        banner()
-        type_effect("Usage: python3 test.py <domain> -scan", Fore.YELLOW)
-        sys.exit()
+    if not args.domain: help_menu()
 
     banner()
-    # Fix path handling
     save_path = os.path.join(os.getcwd(), "reports", args.domain)
-    if not os.path.exists(save_path): 
-        try:
-            os.makedirs(save_path)
-        except OSError as e:
-            print(f"{Fore.RED}[!] Error creating directory: {e}")
-            sys.exit()
+    if not os.path.exists(save_path): os.makedirs(save_path)
 
-    type_effect(f"[*] TARGET LOCKED: {args.domain}", Fore.GREEN)
-    print("-" * 50)
+    print(Fore.GREEN + f"[*] TARGET LOCKED: {args.domain}")
+    print(Fore.GREEN + f"[*] DATA STORAGE : {save_path}\n")
 
-    loading_bar("Establishing Connection")
-    if not live_check.check(args.domain): 
-        print(Fore.RED + "Target seems down.")
-        sys.exit()
+    loading_effect("Checking Host Status")
+    if not live_check.check(args.domain): sys.exit()
 
     if args.scan:
-        print(Fore.WHITE + "\n--- [ PHASE 1: INTELLIGENCE GATHERING ] ---")
-        loading_bar("Geolocating Server")
+        print(Fore.WHITE + Style.BRIGHT + "\n[+] INITIATING NETWORK INTELLIGENCE...")
+        print(Fore.WHITE + "--------------------------------------")
+        loading_effect("Geolocation Scan")
         ip_info.scan(args.domain, save_path)
         
-        loading_bar("Extracting Ownership")
+        loading_effect("Whois Database")
         whois_scan.scan(args.domain, save_path)
         
-        loading_bar("Detecting Real IP (CF Bypass)")
-        real_ip.scan(args.domain, save_path)
-        
-        loading_bar("Dumping DNS Zone")
+        loading_effect("DNS Enumeration")
         dns_scan.scan(args.domain, save_path)
 
-        print(Fore.WHITE + "\n--- [ PHASE 2: VULNERABILITY MATRIX ] ---")
-        loading_bar("Analyzing SSL/SANs")
+        print(Fore.WHITE + Style.BRIGHT + "\n[+] ENGAGING SECURITY MATRIX...")
+        print(Fore.WHITE + "--------------------------------------")
+        loading_effect("SSL Verification")
         ssl_scan.scan(args.domain, save_path)
         
-        loading_bar("Bypassing WAF / Headers")
+        loading_effect("Firewall (WAF) Check")
         waf.scan(args.domain, save_path)
         
-        loading_bar("Checking CORS Misconfig")
-        cors_scan.scan(args.domain, save_path)
-        
-        loading_bar("Testing DoS Vulnerability")
-        dos_check.scan(args.domain, save_path)
-        
-        loading_bar("Fingerprinting OS & Tech")
+        loading_effect("Tech Stack Analysis")
         tech_detect.scan(args.domain, save_path)
-        
-        loading_bar("Hunting SQL Injection")
-        sqli_scan.scan(args.domain, save_path)
 
-        print(Fore.WHITE + "\n--- [ PHASE 3: DEEP RECON ] ---")
-        print(Fore.YELLOW + "[*] Enumerating Subdomains...")
+        print(Fore.WHITE + Style.BRIGHT + "\n[+] STARTING DEEP RECONNAISSANCE...")
+        print(Fore.WHITE + "--------------------------------------")
+        print(Fore.YELLOW + "[*] Fetching Subdomains (Deep Mode)...")
         subdomain.enumerate(args.domain, save_path)
         
         print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
-        # Portscanner usually takes different args, handling mock here:
-        portscanner.scan(args.domain, save_path) 
+        portscanner.scan(args.domain, args.threads, save_path)
 
-        print(Fore.WHITE + "\n--- [ PHASE 4: DATA EXTRACTION ] ---")
-        loading_bar("Harvesting Emails")
-        email_scan.scan(args.domain, save_path)
-        
-        loading_bar("Scraping Social Profiles")
-        social_scan.scan(args.domain, save_path)
-        
-        loading_bar("Brute-forcing Admin Panels")
-        admin_scan.scan(args.domain, save_path)
-        
-        loading_bar("Robots.txt Secrets")
+        print(Fore.WHITE + Style.BRIGHT + "\n[+] DEPLOYING WEB CRAWLER...")
+        print(Fore.WHITE + "--------------------------------------")
+        loading_effect("Analyzing Robots.txt")
         robots.scan(args.domain, save_path)
+        loading_effect("Mapping Sitemap")
         sitemap.scan(args.domain, save_path)
+        
+        loading_effect("JS File Analysis")
         js_scan.scan(args.domain, save_path)
 
-        print(Fore.WHITE + "\n--- [ PHASE 5: VISUAL SURVEILLANCE ] ---")
-        loading_bar("Capturing Evidence")
+        print(Fore.WHITE + Style.BRIGHT + "\n[+] ACTIVATING VISUAL SURVEILLANCE...")
+        print(Fore.WHITE + "--------------------------------------")
         screenshot.capture(args.domain, save_path)
 
-        type_effect("\n[✓] MISSION ACCOMPLISHED. REPORT GENERATED.", Fore.GREEN)
+        print(Fore.GREEN + Style.BRIGHT + f"\n[✓] MISSION ACCOMPLISHED. REPORT GENERATED.")
+        print(Fore.GREEN + f"[✓] Check Directory: {save_path}")
 
 if __name__ == "__main__":
     main()
