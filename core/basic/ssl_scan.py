@@ -19,9 +19,8 @@ def scan(domain, save_path):
                 with open(f"{save_path}/ssl_info.txt", "w") as f:
                     f.write(f"Issued To    : {subject}\n")
                     f.write(f"Issued By    : {issuer}\n")
-                    f.write(f"Creation Date: {issued_on}\n")
+                    f.write(f"Issued Date: {issued_on}\n")
                     f.write(f"Expiry Date  : {expires_on}\n")
-                    f.write(f"Last Updated : {issued_on}\n")
                     f.write(f"Serial Number: {c.get('serialNumber')}\n")
                     f.write(f"Version      : {c.get('version')}\n")
 
