@@ -2,23 +2,60 @@ import requests
 from colorama import Fore
 
 def scan(domain, save_path):
-    print(Fore.YELLOW + "[*] Checking Firewall & Security Headers...")
-    sigs = {"Cloudflare": "cf-ray", "Akamai": "akamai", "AWS": "awselb"}
+    print(Fore.CYAN + f"[*] Detecting Firewall configuration for {domain}...")
     
+    sigs = {
+        "Cloudflare": "cf-ray",
+        "Akamai": "akamai",
+        "AWS WAF": "awselb",
+        "Imperva": "incap-ses",
+        "F5 BigIP": "bigip",
+        "Google Cloud Armor": "google-cloud-armor",
+        "Citrix NetScaler": "ns-server",
+        "Sucuri": "sucuri",
+        "ModSecurity": "mod_security",
+        "Barracuda": "barra",
+        "Fortinet": "fortigate",
+        "SonicWall": "sonicwall",
+        "Palo Alto": "pan-os",
+        "Sophos": "sophos",
+        "ArvanCloud": "arvancloud",
+        "StackPath": "stackpath"
+    }
+
+    generic_keywords = ["firewall", "waf", "shield", "security", "protection", "filter"]
+
     try:
-        # NO TIMEOUT
-        r = requests.get(f"http://{domain}")
-        headers = r.headers
+        url = f"http://{domain}"
+        try:
+            r = requests.get(url, timeout=10)
+        except:
+            url = f"https://{domain}"
+            r = requests.get(url, timeout=10)
+
+        headers = str(r.headers).lower()
+        cookies = str(r.cookies.get_dict()).lower()
         
-        h_str = str(headers).lower()
-        waf = ", ".join([n for n, k in sigs.items() if k in h_str]) or "None"
-        print(Fore.GREEN + f"    > WAF: {waf}")
+        detected = []
+
+        for name, key in sigs.items():
+            if key in headers or key in cookies:
+                detected.append(name)
+
+        if not detected:
+            for keyword in generic_keywords:
+                if keyword in headers:
+                    detected.append(f"Generic/Unknown ({keyword})")
+                    break
+
+        res = ", ".join(list(set(detected))) if detected else "None Detected"
+
+        with open(f"{save_path}/waf.txt", "w") as f:
+            f.write(f"Target: {domain}\n")
+            f.write(f"WAF Status: {res}\n")
+            f.write(f"Raw Headers: {r.headers}\n")
         
-        report = [f"WAF: {waf}\n", "\n[MISSING HEADERS]"]
-        for h in ["X-Frame-Options", "X-XSS-Protection", "Strict-Transport-Security"]:
-            if h not in headers:
-                print(Fore.RED + f"    [-] Missing: {h}")
-                report.append(h)
-        
-        with open(f"{save_path}/waf.txt", "w") as f: f.write("\n".join(report))
-    except: pass
+        print(Fore.GREEN + f"[+] Firewall scan successful for {domain}")
+
+    except:
+        pass
