@@ -7,7 +7,7 @@ from colorama import init, Fore, Style
 init(autoreset=True)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.basic import live_check, subdomain, portscanner, screenshot
+from core.basic import live_check, subdomain, portscanner, screenshot,dos_check
 from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
 from core.crawl import robots, sitemap, js_scan
 
@@ -36,9 +36,9 @@ $$$  / \$$$ |$$   ____|$$ |   $$ |  $$ | $$  $$<
 $$  /   \$$ |\$$$$$$$\ $$ |   \$$$$$$  |$$  /\$$\ 
 \__/     \__| \_______|\__|    \______/ \__/  \__|
     """ + Fore.RESET)
-    print(f"{Fore.CYAN}    Version     : {Fore.WHITE}v10.0 (Ultimate Edition)")
-    print(f"{Fore.CYAN}    Dev         : {Fore.WHITE}Lucky")
-    print(f"{Fore.CYAN}    System      : {Fore.WHITE}Kali Linux (x64) - No Limit Mode\n")
+    print(f"{Fore.CYAN}    Version     : {Fore.WHITE}v3.0.1")
+    print(f"{Fore.CYAN}    Dev         : {Fore.WHITE}Team WebFox")
+    print(f"{Fore.CYAN}    System      : {Fore.WHITE}Kali Linux\n")
 
 def help_menu():
     banner()
@@ -47,7 +47,7 @@ def help_menu():
     print(f" {Fore.GREEN}python3 test.py <domain> -scan    {Fore.WHITE}|  Full Recon (12 Modules)")
     print(f" {Fore.GREEN}python3 test.py -help            {Fore.WHITE}|  Show Help Menu")
     print(f"\n {Fore.YELLOW} [ EXAMPLES ]")
-    print(f" {Fore.WHITE} python3 test.py google.com -scan")
+    print(f" {Fore.WHITE} python3 test.py example.com -scan")
     sys.exit()
 
 def main():
@@ -87,6 +87,9 @@ def main():
         print(Fore.WHITE + "--------------------------------------")
         loading_effect("SSL Verification")
         ssl_scan.scan(args.domain, save_path)
+
+        loading_effect("Dos/DDos Check")
+        dos_check.scan(args.domain, save_path)
         
         loading_effect("Firewall (WAF) Check")
         waf.scan(args.domain, save_path)
