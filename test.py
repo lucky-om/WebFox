@@ -98,7 +98,7 @@ def main():
 
         print(Fore.WHITE + Style.BRIGHT + "\n[+] STARTING DEEP RECONNAISSANCE...")
         print(Fore.WHITE + "--------------------------------------")
-        print(Fore.YELLOW + "[*] Fetching Subdomains (Deep Mode)...")
+        print(Fore.YELLOW + "[*] Fetching Subdomains...")
         subdomain.enumerate(args.domain, save_path)
         
         print(Fore.YELLOW + f"[*] Scanning Ports (Threads: {args.threads})...")
