@@ -11,7 +11,7 @@ def scan(domain, save_path):
             s.recv(1024)
             res = "Secure"
         except socket.timeout:
-            res = "VULNERABLE (Slowloris)"
+            res = "VULNERABLE FOR DOS/DDOS ATTACK!"
             print(Fore.RED + f"    [!] {res}")
         s.close()
         with open(f"{save_path}/dos_vuln.txt", "w") as f: f.write(res)
