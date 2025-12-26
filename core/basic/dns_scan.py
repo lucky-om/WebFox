@@ -15,13 +15,15 @@ def scan(domain, save_path):
                 try:
                     answers = dns.resolver.resolve(domain, r_type)
                     for rdata in answers:
+                        # Format the line
                         line = f"{r_type:<5}: {rdata.to_text()}"
-                        print(Fore.GREEN + f"    > {line}")
+                        
+                        # ONLY Write to file (No print here)
                         f.write(line + "\n")
                 except:
                     pass
 
-        print(Fore.GREEN + f"[+] DNS enumeration successful.")
+        print(Fore.GREEN + f"[+] DNS records saved to {save_path}/dns.txt")
         
     except Exception as e:
         print(Fore.RED + f"[-] DNS Scan Error: {e}")
