@@ -53,20 +53,23 @@ def scan(domain, save_path):
             except:
                 pass
             
-        with open(f"{save_path}/js_urls.txt", "w") as f:
+        with open(f"{save_path}/js_analysis.txt", "w") as f:
+            f.write(f"JAVASCRIPT ANALYSIS FOR {domain}\n")
+            f.write("="*50 + "\n\n")
+            
+            f.write("[!] DETECTED SECRETS\n")
+            f.write("-" * 20 + "\n")
+            if found_secrets:
+                for s in found_secrets: f.write(s + "\n")
+            else:
+                f.write("No explicit secrets found.\n")
+            
+            f.write("\n[+] EXTRACTED URLS\n")
+            f.write("-" * 20 + "\n")
             for link in found_urls:
                 f.write(link + "\n")
 
-        with open(f"{save_path}/js_secrets.txt", "w") as f:
-            if found_secrets:
-                f.write(f"SECRETS DETECTED FOR {domain}\n")
-                f.write("="*50 + "\n")
-                for s in found_secrets:
-                    f.write(s + "\n")
-            else:
-                f.write("No explicit secrets found in JS files.\n")
-            
-        print(Fore.GREEN + f"[+] JS Analysis Done. URLs: {len(found_urls)} | Secrets: {len(found_secrets)}")
+        print(Fore.GREEN + f"[+] JS Analysis Done. Saved to js_analysis.txt")
 
     except Exception as e:
         print(Fore.RED + f"[-] JS Scan failed: {e}")
