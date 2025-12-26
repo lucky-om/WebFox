@@ -134,8 +134,9 @@ if target:
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.markdown("### 🌐 SUBDOMAINS")
-                if os.path.exists(f"{report_path}/subdomains.txt"):
-                    st.text_area("Found Subdomains", open(f"{report_path}/subdomains.txt").read(), height=300)
+                if os.path.exists(f"{report_path}/subdomains_all.txt"):
+                    st.text_area("Found Subdomains", open(f"{report_path}/subdomains_all.txt").read(), height=300)
+                    st.text_area("Live Subdomains", open(f"{report_path}/subdomains_live.txt").read(), height=300)
                 else: st.info("No Subdomains.")
             
             with c2:
