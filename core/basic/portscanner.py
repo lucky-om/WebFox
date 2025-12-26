@@ -32,7 +32,7 @@ def scan(domain, threads, save_path):
     
     ports = [21, 22, 23, 25, 53, 80, 110, 135, 139, 143, 443, 445, 993, 995, 1433, 3306, 3389, 5900, 8000, 8080, 8443]
     results = []
-    print_lock = threading.Lock()
+    results_lock = threading.Lock()
 
     def check(p):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -47,9 +47,8 @@ def scan(domain, threads, save_path):
                 
                 output_line = f"Port {p:<5} : OPEN ({service})"
                 
-                with print_lock:
+                with results_lock:
                     results.append(output_line)
-                    print(Fore.GREEN + f"    > {output_line}")
         except:
             pass
         finally:
@@ -68,4 +67,3 @@ def scan(domain, threads, save_path):
         print(Fore.RED + f"[-] Error saving file: {e}")
 
     print(Fore.GREEN + f"[+] Port scan completed. Found {len(results)} open ports.")
-
