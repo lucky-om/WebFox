@@ -33,19 +33,20 @@ Before installation, make sure you have:
 ### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/lucky-om/WebFox
-
+```
 2️⃣ Navigate to the Project Directory
-
+```bash
 cd WebFox
-
+```
 3️⃣ Give Execute Permissions
-
+```bash
 chmod +x *
+```
 
 4️⃣ Run the Installer
-
+```bash
 ./install.sh
-
+```
 This script will automatically install all required dependencies.
 
 
@@ -54,9 +55,9 @@ This script will automatically install all required dependencies.
 ▶️ Usage (CLI Mode)
 
 🔹 Run Scan
-
+```bash
 python3 test.py example.com -scan
-
+```
 🔹 Description
 
 Replace example.com with your target domain
@@ -96,9 +97,9 @@ Everything related to the scan is stored there.
 WebFox also provides a Graphical User Interface.
 
 ▶️ Start GUI
-
+```bash
 streamlit run gui.py
-
+```
 🔹 GUI Features
 
 Easy target input
