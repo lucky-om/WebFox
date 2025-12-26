@@ -2,24 +2,17 @@ import argparse
 import os
 import sys
 import time
-import re  # Added for Regex validation
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from core.basic import live_check, subdomain, portscanner, screenshot, dos_check
+from core.basic import live_check, subdomain, portscanner, screenshot,dos_check
 from core.basic import ssl_scan, dns_scan, tech_detect, whois_scan, ip_info, waf
 from core.crawl import robots, sitemap, js_scan
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
-
-def is_valid_domain(domain):
-    # Regex to check for standard domain format (example.com, sub.example.co.uk)
-    # Rejects http://, https://, spaces, and weird characters
-    regex = r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
-    return re.match(regex, domain) is not None
 
 def loading_effect(task_name):
     sys.stdout.write(f"{Fore.CYAN}[*] {task_name:<25} ")
@@ -68,17 +61,6 @@ def main():
     if not args.domain: help_menu()
 
     banner()
-    
-    # --- DOMAIN VALIDATION BLOCK ---
-    if not is_valid_domain(args.domain):
-        print(Fore.RED + Style.BRIGHT + "\n[!] ERROR: INVALID DOMAIN FORMAT DETECTED")
-        print(Fore.RED + "---------------------------------------------")
-        print(Fore.WHITE + "You entered : " + Fore.YELLOW + f"'{args.domain}'")
-        print(Fore.WHITE + "Correct usage: " + Fore.GREEN + "python3 test.py example.com -scan")
-        print(Fore.WHITE + "Do NOT use    : http://, https://, or /path")
-        sys.exit()
-    # -------------------------------
-
     save_path = os.path.join(os.getcwd(), "reports", args.domain)
     if not os.path.exists(save_path): os.makedirs(save_path)
 
@@ -86,7 +68,9 @@ def main():
     print(Fore.GREEN + f"[*] DATA STORAGE : {save_path}\n")
 
     loading_effect("Checking Host Status")
-    if not live_check.check(args.domain): sys.exit()
+    if not live_check.check(args.domain): 
+    	print(f" {Fore.RED} Or Target is not a valid domain.")
+    	sys.exit()
 
     if args.scan:
         print(Fore.WHITE + Style.BRIGHT + "\n[+] INITIATING NETWORK INTELLIGENCE...")
@@ -141,4 +125,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
