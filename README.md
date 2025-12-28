@@ -124,16 +124,6 @@ Beginner‑friendly interface
 
 ![WebFox GUI](screenshots/gui.png)
 
-📁 Recommended Structure
-
-WebFox/
- ├── screenshots/
- │    ├── cli.png
- │    └── gui.png
-
-(Add your actual screenshots with these names.)
-
-
 ---
 
 ⚠️ Disclaimer
