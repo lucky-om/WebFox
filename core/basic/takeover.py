@@ -103,8 +103,15 @@ def scan(domain, save_path):
         print(Fore.YELLOW + "  [~] Subdomain scan results not found. Run subdomain scan first.")
         return
 
+    live_subs = []
     with open(live_file, "r") as f:
-        live_subs = [line.strip() for line in f if line.strip()]
+        for line in f:
+            line = line.strip()
+            if not line or " | " not in line:
+                continue
+            sub = line.split(" | ")[0].strip()
+            if sub:
+                live_subs.append(sub)
 
     if not live_subs:
         print(Fore.YELLOW + "  [~] No live subdomains to check.")

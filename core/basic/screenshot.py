@@ -87,7 +87,7 @@ def capture(domain, save_path):
         # Discover high-value URLs from homepage links
         try:
             r = session.get(base_url, timeout=10, verify=False)
-            links = re.findall(r'href=["\\'](https?://[^"\\\']+)["\\'']', r.text)
+            links = re.findall(r"""href=["'](https?://[^"']+)["']""", r.text)
             for link in links:
                 if domain in link:
                     candidates.add(link)
