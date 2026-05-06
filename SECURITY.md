@@ -17,9 +17,9 @@ We only provide security updates and patches for the latest "Ultimate Edition" r
 
 | Version | Supported          | Status |
 | :------ | :----------------- | :----- |
-| v4.0+  | :white_check_mark: | **Active Maintenance** |
-| v3.x    | :x:                | End of Life |
-| < v3.0  | :x:                | Deprecated |
+| v3.0+  | :white_check_mark: | **Active Maintenance** |
+| v2.x    | :x:                | End of Life |
+| < v2.0  | :x:                | Deprecated |
 
 ---
 
@@ -48,5 +48,5 @@ Since WebFox performs active network scanning and interaction:
 
 ---
 
-*Policy last updated: April 2026*
+*Policy last updated: December 2025*
 

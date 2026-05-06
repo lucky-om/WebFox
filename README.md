@@ -1,4 +1,4 @@
-# 🦊 WebFox Recon v4.0 — by Lucky
+# 🦊 WebFox
 
 WebFox is an **automated web reconnaissance and vulnerability scanning framework** designed for **ethical hackers, penetration testers, and bug bounty hunters**.  
 It performs **domain scanning, data collection, and reporting**, and also provides a **GUI interface** for ease of use.

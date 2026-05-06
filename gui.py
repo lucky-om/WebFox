@@ -1,519 +1,589 @@
-"""
-WebFox v4.0 — GUI Commander
-Streamlit-based graphical interface for the WebFox Recon Framework.
-
-Author  : Lucky
-Project : WebFox Recon Framework v4.0
-License : MIT
-"""
 import streamlit as st
 import os
 import subprocess
 import glob
+import sys
 
-# ── Page Config ───────────────────────────────────────────────────────────────
+VERSION = "v4.0.0"
+AUTHOR  = "Lucky"
+
 st.set_page_config(
-    page_title="WebFox v4.0 | by Lucky",
+    page_title=f"WEBFOX {VERSION} — RECON COMMANDER",
     layout="wide",
-    page_icon="🦊",
-    initial_sidebar_state="expanded",
+    page_icon="🦊"
 )
 
-# ── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Homenaje&family=JetBrains+Mono:wght@400;700&display=swap');
 
-    /* ── Base ── */
-    .stApp {
-        background: linear-gradient(135deg, #0d0d0f 0%, #111114 100%);
-        font-family: 'Inter', sans-serif;
-    }
+.stApp { background-color: #0d0d0d; }
 
-    /* ── Typography ── */
-    h1, h2, h3, h4, p, span, div, label {
-        color: #e5e7eb !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    h1 { color: #f97316 !important; font-size: 1.6rem !important; font-weight: 900 !important; letter-spacing: -0.5px; }
-    h2 { color: #f97316 !important; font-size: 1.1rem !important; font-weight: 700 !important; }
-    h3 { color: #e5e7eb !important; font-size: 0.95rem !important; font-weight: 600 !important; }
+h1, h2, h3, h4, p, span, div, label {
+    color: #e0e0e0 !important;
+    font-family: 'Homenaje', sans-serif !important;
+}
+h1 { color: #f97316 !important; font-size: 1.55rem !important; letter-spacing: 3px; }
+h3, h4 { color: #f97316 !important; }
 
-    /* ── Inputs ── */
-    .stTextInput > div > div > input {
-        background-color: #1c1c22;
-        color: #ffffff;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.88rem;
-        padding: 10px 14px;
-        transition: border-color 0.2s;
-    }
-    .stTextInput > div > div > input:focus {
-        border-color: #f97316 !important;
-        box-shadow: 0 0 0 2px rgba(249,115,22,0.15) !important;
-    }
+.stTextInput > div > div > input {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border: 1px solid #333 !important;
+    border-radius: 2px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+}
 
-    /* ── Buttons ── */
-    .stButton > button {
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: #ffffff !important;
-        border: none;
-        border-radius: 8px;
-        font-weight: 700;
-        font-family: 'Inter', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-size: 0.8rem;
-        padding: 10px 20px;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 14px rgba(249,115,22,0.25);
-        width: 100%;
-    }
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #fb923c, #f97316);
-        box-shadow: 0 6px 20px rgba(249,115,22,0.4);
-        transform: translateY(-1px);
-        color: #ffffff !important;
-    }
-    .stButton > button:active {
-        transform: translateY(0);
-    }
+.stButton > button {
+    background-color: #f97316 !important;
+    color: #000000 !important;
+    border: none !important;
+    border-radius: 2px !important;
+    font-weight: bold !important;
+    font-family: 'Homenaje', sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 2px !important;
+    width: 100% !important;
+    padding: 0.55rem 1rem !important;
+    transition: background 0.2s;
+}
+.stButton > button:hover { background-color: #c2410c !important; }
 
-    /* ── Tabs ── */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        background-color: #131317;
-        border-radius: 10px;
-        padding: 6px;
-        border: 1px solid #1e1e28;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        border: none;
-        color: #9ca3af !important;
-        font-family: 'Inter', sans-serif;
-        text-transform: uppercase;
-        font-size: 0.78rem;
-        font-weight: 600;
-        letter-spacing: 0.8px;
-        padding: 8px 16px;
-        border-radius: 6px;
-        transition: all 0.2s;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(249,115,22,0.08) !important;
-        color: #f97316 !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #f97316, #ea580c) !important;
-        color: #ffffff !important;
-        font-weight: 700 !important;
-    }
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
+    background-color: #161616;
+    border-radius: 2px;
+    padding: 5px;
+    border: 1px solid #222;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent !important;
+    border: none !important;
+    color: #888 !important;
+    font-family: 'Homenaje', sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 0.78rem !important;
+    padding: 5px 12px !important;
+    border-radius: 2px !important;
+}
+.stTabs [aria-selected="true"] {
+    background-color: #f97316 !important;
+    color: #000 !important;
+}
 
-    /* ── Sidebar ── */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #111114 0%, #0d0d0f 100%);
-        border-right: 1px solid #1e1e28;
-    }
-    [data-testid="stSidebar"] .stMarkdown p {
-        color: #9ca3af !important;
-        font-size: 0.8rem;
-    }
+[data-testid="stSidebar"] {
+    background-color: #111 !important;
+    border-right: 1px solid #1f1f1f !important;
+}
 
-    /* ── Text Areas & Code ── */
-    .stTextArea textarea {
-        background-color: #131317;
-        color: #e5e7eb;
-        border: 1px solid #1e1e28;
-        border-radius: 8px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78rem;
-    }
-    .stCode, pre {
-        background-color: #131317 !important;
-        border: 1px solid #1e1e28 !important;
-        border-radius: 8px !important;
-        font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.78rem !important;
-    }
+.stTextArea textarea {
+    background-color: #141414 !important;
+    color: #d4d4d4 !important;
+    border: 1px solid #222 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.72rem !important;
+}
 
-    /* ── Selectbox ── */
-    .stSelectbox > div > div {
-        background-color: #1c1c22;
-        border: 1px solid #2a2a35;
-        border-radius: 8px;
-        color: #e5e7eb;
-    }
+code, pre {
+    background-color: #141414 !important;
+    color: #d4d4d4 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.72rem !important;
+    border: 1px solid #222 !important;
+    border-radius: 2px !important;
+}
 
-    /* ── Alerts ── */
-    .stAlert {
-        border-radius: 8px !important;
-        border-left-width: 4px !important;
-    }
+.stSelectbox > div > div {
+    background-color: #1a1a1a !important;
+    border: 1px solid #333 !important;
+    color: #e0e0e0 !important;
+}
 
-    /* ── Metrics / Cards ── */
-    [data-testid="metric-container"] {
-        background-color: #131317;
-        border: 1px solid #1e1e28;
-        border-radius: 10px;
-        padding: 16px;
-    }
+.stRadio label { color: #e0e0e0 !important; }
+.stAlert { border-radius: 2px !important; }
 
-    /* ── Divider ── */
-    hr { border-color: #1e1e28 !important; }
+div[data-testid="metric-container"] {
+    background-color: #161616;
+    border: 1px solid #2a2a2a;
+    border-radius: 2px;
+    padding: 10px 14px;
+}
+div[data-testid="metric-container"] label { color: #f97316 !important; }
+div[data-testid="metric-container"] div   { color: #ffffff !important; font-size: 1.6rem !important; }
 
-    /* ── Scrollbar ── */
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #0d0d0f; }
-    ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+.footer-credit {
+    text-align: center;
+    color: #444;
+    font-size: 0.7rem;
+    padding: 8px 0;
+    font-family: 'JetBrains Mono', monospace;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# ── Script directory (so subprocess can find test.py) ──────────────────────
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def safe_read(path):
-    """Safely read a file; return empty string on any error."""
+# ── HEADER ─────────────────────────────────────────────────────────────────
+st.title(f"⚔  WEBFOX {VERSION}  ·  ADVANCED RECON COMMANDER")
+st.markdown(
+    f"<div style='color:#555;font-size:0.75rem;font-family:JetBrains Mono,monospace;"
+    f"margin-top:-10px;margin-bottom:10px;'>Coded by <span style='color:#f97316'>{AUTHOR}</span>"
+    f" &nbsp;|&nbsp; Multi-Target Intelligence Framework</div>",
+    unsafe_allow_html=True
+)
+st.markdown("---")
+
+# ── SIDEBAR ────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown(f"### 🦊 WEBFOX {VERSION}")
+    st.markdown(f"<div style='color:#f97316;font-size:0.7rem;margin-bottom:8px;'>Coded by {AUTHOR}</div>",
+                unsafe_allow_html=True)
+    st.markdown("---")
+
+    st.subheader("🎯 TARGET")
+    target = st.text_input("Domain", placeholder="example.com", label_visibility="collapsed")
+
+    if target and ("http" in target or "/" in target or " " in target):
+        st.warning("⚠ Enter a bare domain — e.g. `example.com`")
+
+    st.markdown("---")
+    st.subheader("⚙ SCAN MODE")
+
+    scan_mode = st.radio(
+        "Mode",
+        options=["🌐 Domain Only", "🔍 Subdomains Only", "🚀 Both (Full Recon)"],
+        index=2,
+        label_visibility="collapsed"
+    )
+
+    mode_flag_map = {
+        "🌐 Domain Only"      : "-domain-only",
+        "🔍 Subdomains Only"  : "-subs-only",
+        "🚀 Both (Full Recon)": "-both",
+    }
+
+    st.markdown("---")
+    st.subheader("🔧 OPTIONS")
+    threads = st.slider("Port Scan Threads", min_value=10, max_value=300, value=100, step=10)
+
+    st.markdown("---")
+
+    run_btn = st.button("⚡ EXECUTE SCAN")
+
+    if run_btn:
+        if not target or "http" in target or "/" in target or " " in target:
+            st.error("❌ Enter a valid domain first (e.g. example.com)")
+        else:
+            flag = mode_flag_map[scan_mode]
+            cmd  = [
+                sys.executable,
+                os.path.join(SCRIPT_DIR, "test.py"),
+                target,
+                "-scan",
+                flag,
+                "-threads", str(threads),
+            ]
+            status_box = st.empty()
+            status_box.info(f"⏳ Scanning **{target}** [{scan_mode}] — this may take several minutes...")
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    cwd=SCRIPT_DIR,
+                    timeout=1800       # 30-minute hard cap
+                )
+                if proc.returncode == 0:
+                    status_box.success(f"✅ Scan complete for **{target}**. Scroll right to view results.")
+                else:
+                    err = (proc.stderr or proc.stdout or "Unknown error")[-800:]
+                    status_box.error(f"❌ Scan failed:\n```\n{err}\n```")
+            except subprocess.TimeoutExpired:
+                status_box.error("❌ Scan timed out after 30 minutes.")
+            except FileNotFoundError:
+                status_box.error("❌ `test.py` not found. Make sure you run the GUI from the WebFox directory.")
+            except Exception as e:
+                status_box.error(f"❌ Unexpected error: {e}")
+
+    st.markdown("---")
+    st.markdown(
+        f"<div class='footer-credit'>WebFox {VERSION} · Coded by {AUTHOR}</div>",
+        unsafe_allow_html=True
+    )
+
+# ── Helper: safe file read ──────────────────────────────────────────────────
+def _read(path, limit=8000):
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            return f.read()
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            return f.read(limit)
     except Exception:
         return ""
 
+def _count_lines(path, keyword):
+    """Count lines containing keyword in a file."""
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            return sum(1 for l in f if keyword in l)
+    except Exception:
+        return 0
 
-# ── Header ────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="
-    background: linear-gradient(135deg, #0d0d0f 0%, #1a0a00 60%, #0d0d0f 100%);
-    border-bottom: 1px solid #1e1e28;
-    padding: 20px 28px 16px 28px;
-    margin: -1rem -1rem 1.5rem -1rem;
-    display: flex; align-items: center; justify-content: space-between;
-">
-    <div>
-        <span style="font-family:'Inter',sans-serif; font-size:2rem; font-weight:900; color:#f97316; letter-spacing:-1px;">
-            WEB<span style="color:#e5e7eb;">FOX</span>
-        </span>
-        <span style="font-size:0.9rem; color:#6b7280; margin-left:12px; font-family:'Inter',sans-serif;">
-            v4.0 COMMANDER
-        </span>
-    </div>
-    <div style="text-align:right;">
-        <span style="display:inline-block; background:rgba(249,115,22,0.12); border:1px solid rgba(249,115,22,0.3);
-            color:#f97316; border-radius:20px; padding:4px 14px; font-size:0.72rem;
-            font-weight:700; letter-spacing:1px; font-family:'Inter',sans-serif;">
-            ⚡ BY LUCKY
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ── Sidebar Controls ──────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("""
-    <div style="padding: 8px 0 16px 0;">
-        <p style="color:#f97316 !important; font-weight:700; font-size:0.9rem; text-transform:uppercase; letter-spacing:1px;">
-            🦊 WebFox Recon
-        </p>
-        <p style="color:#6b7280 !important; font-size:0.75rem; margin-top:-8px;">
-            by Lucky · v4.0
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("### 🎯 Target System")
-
-    target = st.text_input(
-        "Enter Domain",
-        placeholder="example.com",
-        help="Enter a domain without http:// prefix"
-    )
-
-    # Input validation
-    if target:
-        if "http" in target or "/" in target:
-            st.warning("⚠️ Enter domain only — no http:// or paths.")
-        elif " " in target:
-            st.warning("⚠️ Domain cannot contain spaces.")
-
-    st.markdown("")
-
-    col_full, col_fast = st.columns(2)
-    with col_full:
-        run_full = st.button("🔍 FULL SCAN", use_container_width=True)
-    with col_fast:
-        run_fast = st.button("⚡ FAST SCAN", use_container_width=True)
-
-    if (run_full or run_fast) and target and " " not in target and "http" not in target:
-        cmd = ["python3", "test.py", target, "-scan"]
-        if run_fast:
-            cmd.append("-fast")
-        with st.spinner(f"🦊 Infiltrating {target}… please wait"):
-            result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode == 0:
-            st.success("✅ Scan complete! Data collected.")
-        else:
-            st.error("❌ Scan failed. Check the domain or logs.")
-            if result.stderr:
-                with st.expander("Show error output"):
-                    st.code(result.stderr[:2000])
-
-    st.markdown("---")
-    st.markdown("""
-    <div style="padding:12px; background:#131317; border-radius:8px; border:1px solid #1e1e28;">
-        <p style="color:#6b7280 !important; font-size:0.72rem; margin:0; line-height:1.6;">
-            <b style="color:#f97316 !important;">🔒 Usage</b><br>
-            python3 test.py &lt;domain&gt; -scan<br>
-            python3 test.py &lt;domain&gt; -scan -fast<br>
-            python3 test.py -help
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("")
-    st.markdown("""
-    <p style="color:#374151 !important; font-size:0.7rem; text-align:center;">
-        © Lucky · WebFox Recon Framework
-    </p>
-    """, unsafe_allow_html=True)
-
-
-# ── Main Display Area ─────────────────────────────────────────────────────────
-if not target:
-    # Landing state
-    st.markdown("""
-    <div style="text-align:center; padding:80px 20px;">
-        <div style="font-size:4rem;">🦊</div>
-        <h2 style="color:#f97316 !important; font-size:1.5rem !important; margin:16px 0 8px 0;">
-            WebFox Recon Commander
-        </h2>
-        <p style="color:#6b7280 !important; font-size:0.95rem;">
-            Enter a domain in the sidebar and run a scan to begin intelligence gathering.
-        </p>
-        <div style="margin-top:32px; display:flex; gap:16px; flex-wrap:wrap; justify-content:center;">
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">🌐 Subdomain Enum</span>
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">🔌 Port Scanning</span>
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">🛡️ HTTP Headers</span>
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">🔐 SSL/TLS Audit</span>
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">🔑 JS Secret Hunt</span>
-            <span style="background:#131317; border:1px solid #1e1e28; border-radius:8px; padding:10px 18px; font-size:0.8rem; color:#9ca3af;">📁 Dir Scanning</span>
-        </div>
-        <p style="color:#374151 !important; font-size:0.72rem; margin-top:48px;">
-            © Lucky · WebFox Recon Framework v4.0
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-else:
-    report_path = os.path.join("reports", target)
+# ── MAIN DISPLAY ────────────────────────────────────────────────────────────
+if target and "http" not in target and "/" not in target and " " not in target:
+    report_path = os.path.join(SCRIPT_DIR, "reports", target)
+    sub_base    = os.path.join(report_path, "subdomains")
 
     if not os.path.exists(report_path):
-        st.markdown(f"""
-        <div style="text-align:center; padding:60px 20px;">
-            <div style="font-size:3rem;">📡</div>
-            <h3 style="color:#f97316 !important; margin-top:12px;">No Report Found for <code>{target}</code></h3>
-            <p style="color:#6b7280 !important;">Run a scan from the sidebar to collect intelligence.</p>
+        st.markdown("""
+        <div style='text-align:center;padding:60px 0;'>
+            <h2 style='color:#f97316!important;'>🦊 NO REPORT FOUND</h2>
+            <p style='color:#555;'>Run a scan first using the sidebar, then refresh.</p>
         </div>
         """, unsafe_allow_html=True)
-    else:
-        # Report found — show it
-        html_report = os.path.join(report_path, "Lucky_WebFox_Report.html")
-        st.markdown(f"""
-        <div style="display:flex; align-items:center; justify-content:space-between;
-            background:#131317; border:1px solid #1e1e28; border-radius:10px; padding:12px 20px; margin-bottom:20px;">
-            <div>
-                <span style="color:#f97316 !important; font-weight:700; font-size:1rem;">🎯 {target}</span>
-                <span style="color:#6b7280; font-size:0.78rem; margin-left:12px;">Intelligence Report</span>
-            </div>
-            {"<a href='file://" + html_report + "' target='_blank' style='background:rgba(249,115,22,0.15);color:#f97316;border:1px solid rgba(249,115,22,0.3);border-radius:6px;padding:6px 14px;text-decoration:none;font-size:0.78rem;font-weight:700;'>📄 Open Full HTML Report</a>" if os.path.exists(html_report) else ""}
-        </div>
-        """, unsafe_allow_html=True)
+        st.stop()
 
-        tab1, tab2, tab3, tab4, tab5 = st.tabs([
-            "📡 VISUALS",
-            "🌐 NETWORK",
-            "🔐 SECURITY",
-            "🕸️ CRAWLER",
-            "📂 RAW LOGS"
+    st.subheader(f"📂 INTEL ARCHIVE — {target}")
+
+    # ── Metrics bar ────────────────────────────────────────────────────────
+    all_subs  = _count_lines(os.path.join(report_path, "subdomains_all.txt"),  "")  if os.path.exists(os.path.join(report_path, "subdomains_all.txt"))  else 0
+    live_subs = _count_lines(os.path.join(report_path, "subdomains_live.txt"), "")  if os.path.exists(os.path.join(report_path, "subdomains_live.txt")) else 0
+    open_ports= _count_lines(os.path.join(report_path, "ports.txt"),           "OPEN") if os.path.exists(os.path.join(report_path, "ports.txt"))           else 0
+    secrets   = _count_lines(os.path.join(report_path, "js_analysis.txt"),     ">>")   if os.path.exists(os.path.join(report_path, "js_analysis.txt"))     else 0
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("🌐 Subdomains Found",   all_subs)
+    m2.metric("✅ Live Subdomains",    live_subs)
+    m3.metric("🔌 Open Ports",         open_ports)
+    m4.metric("🔑 Secrets Detected",   secrets)
+    st.markdown("---")
+
+    # ── Tabs ───────────────────────────────────────────────────────────────
+    tabs = st.tabs([
+        "📡 VISUALS",
+        "🌐 NETWORK",
+        "🔐 SECURITY",
+        "🕸 CRAWLING",
+        "🔥 DOS / HTTP",
+        "📁 LOGS",
+        "🔬 SUBDOMAIN INTEL",
+    ])
+
+    # ── TAB 0: VISUALS ─────────────────────────────────────────────────────
+    with tabs[0]:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("#### 📡 GEOLOCATION & ASN")
+            ip_file = os.path.join(report_path, "ip_location.txt")
+            if os.path.exists(ip_file):
+                st.code(_read(ip_file), language="yaml")
+            else:
+                st.info("No IP data. Run a Domain scan.")
+
+        with col2:
+            st.markdown("#### 👤 WHOIS / OWNER INFO")
+            w_file = os.path.join(report_path, "whois_basic.txt")
+            if os.path.exists(w_file):
+                st.code(_read(w_file), language="yaml")
+            else:
+                st.info("No WHOIS data. Run a Domain scan.")
+
+        st.markdown("#### 🖥️ SURVEILLANCE SCREENSHOTS")
+        images = glob.glob(os.path.join(report_path, "*.png"))
+        if images:
+            cols = st.columns(min(len(images), 3))
+            for i, img in enumerate(images):
+                cols[i % 3].image(img, caption=os.path.basename(img), use_container_width=True)
+        else:
+            st.info("No screenshots captured.")
+
+    # ── TAB 1: NETWORK ─────────────────────────────────────────────────────
+    with tabs[1]:
+        n1, n2, n3 = st.columns(3)
+
+        with n1:
+            st.markdown("#### 🌐 SUBDOMAINS")
+            all_f  = os.path.join(report_path, "subdomains_all.txt")
+            live_f = os.path.join(report_path, "subdomains_live.txt")
+            if os.path.exists(all_f):
+                st.text_area("All Discovered", _read(all_f, 20000), height=250)
+            else:
+                st.info("No subdomain data. Use Subdomains Only or Both mode.")
+            if os.path.exists(live_f):
+                st.text_area("✅ Live Only", _read(live_f, 10000), height=180)
+
+        with n2:
+            st.markdown("#### 🔌 OPEN PORTS")
+            p_file = os.path.join(report_path, "ports.txt")
+            if os.path.exists(p_file):
+                st.code(_read(p_file), language="yaml")
+            else:
+                st.info("No port scan data.")
+
+        with n3:
+            st.markdown("#### 📒 DNS RECORDS")
+            d_file = os.path.join(report_path, "dns.txt")
+            if os.path.exists(d_file):
+                st.code(_read(d_file))
+            else:
+                st.info("No DNS data.")
+
+    # ── TAB 2: SECURITY ────────────────────────────────────────────────────
+    with tabs[2]:
+        s1, s2 = st.columns(2)
+
+        with s1:
+            st.markdown("#### 🔥 WAF & SECURITY HEADERS")
+            waf_file = os.path.join(report_path, "waf.txt")
+            if os.path.exists(waf_file):
+                content = _read(waf_file, 5000)
+                if "None Detected" in content:
+                    st.success(content)
+                else:
+                    st.error(content)
+            else:
+                st.info("No WAF data.")
+
+            st.markdown("#### 🛠️ TECHNOLOGY STACK")
+            t_file = os.path.join(report_path, "technologies.txt")
+            if os.path.exists(t_file):
+                st.code(_read(t_file), language="yaml")
+            else:
+                st.info("No tech data.")
+
+        with s2:
+            st.markdown("#### 🔐 SSL / TLS CERTIFICATE")
+            ssl_file = os.path.join(report_path, "ssl_info.txt")
+            if os.path.exists(ssl_file):
+                content = _read(ssl_file, 6000)
+                if "EXPIRED" in content or "FAILED" in content or "VERIFICATION FAILED" in content:
+                    st.error(content)
+                else:
+                    st.code(content, language="yaml")
+            else:
+                st.info("No SSL data.")
+
+    # ── TAB 3: CRAWLING ────────────────────────────────────────────────────
+    with tabs[3]:
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.markdown("#### 🕵️ JS INTELLIGENCE")
+            js_file  = os.path.join(report_path, "js_analysis.txt")
+            js_file2 = os.path.join(report_path, "js_urls.txt")
+            if os.path.exists(js_file):
+                content = _read(js_file, 8000)
+                if ">>" in content:
+                    st.error("⚠️ Secrets / sensitive data detected!")
+                st.text_area("JS Analysis", content, height=350)
+            elif os.path.exists(js_file2):
+                st.text_area("JS URLs", _read(js_file2), height=350)
+            else:
+                st.info("No JS data.")
+
+        with c2:
+            st.markdown("#### 🤖 ROBOTS.TXT")
+            r_file = os.path.join(report_path, "robots.txt")
+            if os.path.exists(r_file):
+                content = _read(r_file, 5000)
+                if "HIGH RISK" in content:
+                    st.warning("⚠️ High-risk paths exposed!")
+                st.code(content)
+            else:
+                st.info("No robots.txt found.")
+
+        with c3:
+            st.markdown("#### 🗺️ SITEMAP")
+            for fname in ["sitemap_analysis.txt", "sitemap.xml", "sitemap.txt"]:
+                fpath = os.path.join(report_path, fname)
+                if os.path.exists(fpath):
+                    st.code(_read(fpath, 5000))
+                    break
+            else:
+                st.info("No sitemap found.")
+
+    # ── TAB 4: DOS / HTTP ──────────────────────────────────────────────────
+    with tabs[4]:
+        st.markdown("#### 🔥 DoS RESISTANCE & HTTP BEHAVIOUR")
+        dos_file = os.path.join(report_path, "dos_vuln.txt")
+        if os.path.exists(dos_file):
+            content = _read(dos_file)
+            if "VULNERABLE" in content or "ABSENT" in content:
+                st.warning("⚠️ Potential vulnerabilities detected:")
+            else:
+                st.success("✅ No obvious DoS vulnerabilities detected.")
+            st.code(content)
+        else:
+            st.info("No DoS data. Run a Domain scan.")
+
+    # ── TAB 5: LOGS ────────────────────────────────────────────────────────
+    with tabs[5]:
+        st.markdown("#### 📁 RAW FILE BROWSER")
+        all_files = sorted([
+            f for f in os.listdir(report_path)
+            if os.path.isfile(os.path.join(report_path, f))
+        ])
+        if all_files:
+            selected = st.selectbox("Select file to view:", all_files)
+            if selected:
+                fpath = os.path.join(report_path, selected)
+                if selected.lower().endswith(".png"):
+                    st.image(fpath)
+                else:
+                    st.code(_read(fpath, 10000))
+        else:
+            st.info("No files yet. Run a scan first.")
+
+    # ── TAB 6: SUBDOMAIN INTEL ─────────────────────────────────────────────
+    with tabs[6]:
+        st.markdown("#### 🔬 SUBDOMAIN DEEP RECON VIEWER")
+
+        if not os.path.exists(sub_base):
+            st.info(
+                "No subdomain intelligence collected yet.\n\n"
+                "Run a scan with **🔍 Subdomains Only** or **🚀 Both** mode."
+            )
+            st.stop()
+
+        sub_dirs = sorted([
+            d for d in os.listdir(sub_base)
+            if os.path.isdir(os.path.join(sub_base, d))
         ])
 
-        # ── TAB 1: Visuals ────────────────────────────────────────────────────
-        with tab1:
-            col1, col2 = st.columns(2, gap="medium")
-            with col1:
-                st.markdown("### 📍 Server Location")
-                ip_data = safe_read(f"{report_path}/ip_location.txt")
-                if ip_data:
-                    st.code(ip_data, language="yaml")
-                else:
-                    st.info("No IP/Location data found.")
+        if not sub_dirs:
+            st.warning("Subdomain folder exists but no subdomains were scanned yet.")
+            st.stop()
 
-            with col2:
-                st.markdown("### 👤 WHOIS / Owner Info")
-                whois_data = safe_read(f"{report_path}/whois_basic.txt")
-                if whois_data:
-                    st.code(whois_data, language="yaml")
-                else:
-                    st.info("No WHOIS data found.")
+        sel_col, stat_col = st.columns([1, 3])
+        with sel_col:
+            selected_sub = st.selectbox(f"🎯 {len(sub_dirs)} subdomains:", sub_dirs)
 
-            st.markdown("---")
-            st.markdown("### 🖥️ Surveillance Snapshots")
-            images = glob.glob(f"{report_path}/*.png")
-            if images:
-                cols = st.columns(min(len(images), 3))
-                for i, img_path in enumerate(images):
-                    with cols[i % 3]:
-                        st.image(img_path, caption=os.path.basename(img_path), use_container_width=True)
+        sp = os.path.join(sub_base, selected_sub)
+
+        sub_ports   = _count_lines(os.path.join(sp, "ports.txt"),       "OPEN") if os.path.exists(os.path.join(sp, "ports.txt"))       else 0
+        sub_secrets = _count_lines(os.path.join(sp, "js_analysis.txt"), ">>")   if os.path.exists(os.path.join(sp, "js_analysis.txt")) else 0
+
+        with stat_col:
+            sc1, sc2 = st.columns(2)
+            sc1.metric("🔌 Open Ports",   sub_ports)
+            sc2.metric("🔑 Secrets Found", sub_secrets)
+
+        st.markdown(f"---\n**Target:** `{selected_sub}`")
+
+        # Row 1
+        r1a, r1b, r1c = st.columns(3)
+        with r1a:
+            st.markdown("**📡 IP / Geolocation**")
+            f = os.path.join(sp, "ip_location.txt")
+            st.code(_read(f), language="yaml") if os.path.exists(f) else st.info("No data.")
+
+        with r1b:
+            st.markdown("**🔐 SSL Certificate**")
+            f = os.path.join(sp, "ssl_info.txt")
+            st.code(_read(f, 2500), language="yaml") if os.path.exists(f) else st.info("No data.")
+
+        with r1c:
+            st.markdown("**📒 DNS Records**")
+            f = os.path.join(sp, "dns.txt")
+            st.code(_read(f, 2000)) if os.path.exists(f) else st.info("No data.")
+
+        # Row 2
+        r2a, r2b, r2c = st.columns(3)
+        with r2a:
+            st.markdown("**🔥 WAF / Headers**")
+            f = os.path.join(sp, "waf.txt")
+            if os.path.exists(f):
+                c = _read(f, 2500)
+                if "DETECTED" in c and "None Detected" not in c:
+                    st.error(c)
+                else:
+                    st.code(c)
             else:
-                st.info("📷 No screenshots captured. Run without -fast flag on Linux/Kali.")
+                st.info("No data.")
 
-        # ── TAB 2: Network ────────────────────────────────────────────────────
-        with tab2:
-            c1, c2, c3 = st.columns(3, gap="medium")
-            with c1:
-                st.markdown("### 🌐 Subdomains")
-                if os.path.exists(f"{report_path}/subdomains_all.txt"):
-                    st.text_area("All Discovered", safe_read(f"{report_path}/subdomains_all.txt"), height=280)
-                    live_path = f"{report_path}/subdomains_live.txt"
-                    if os.path.exists(live_path):
-                        st.text_area("Live Only", safe_read(live_path), height=200)
+        with r2b:
+            st.markdown("**🛠️ Tech Stack**")
+            f = os.path.join(sp, "technologies.txt")
+            st.code(_read(f, 2000), language="yaml") if os.path.exists(f) else st.info("No data.")
+
+        with r2c:
+            st.markdown("**🔌 Open Ports**")
+            f = os.path.join(sp, "ports.txt")
+            st.code(_read(f, 2000)) if os.path.exists(f) else st.info("No data.")
+
+        # Row 3
+        r3a, r3b, r3c = st.columns(3)
+        with r3a:
+            st.markdown("**🕵️ JS Analysis**")
+            found_js = False
+            for fn in ["js_analysis.txt", "js_urls.txt"]:
+                f = os.path.join(sp, fn)
+                if os.path.exists(f):
+                    c = _read(f, 3000)
+                    if ">>" in c:
+                        st.error("⚠️ Secrets found!")
+                    st.text_area("", c, height=200, key=f"js_{selected_sub}_{fn}")
+                    found_js = True
+                    break
+            if not found_js:
+                st.info("No data.")
+
+        with r3b:
+            st.markdown("**🤖 Robots.txt**")
+            f = os.path.join(sp, "robots.txt")
+            st.code(_read(f, 2000)) if os.path.exists(f) else st.info("No data.")
+
+        with r3c:
+            st.markdown("**🗺️ Sitemap**")
+            found_sm = False
+            for fn in ["sitemap_analysis.txt", "sitemap.xml", "sitemap.txt"]:
+                f = os.path.join(sp, fn)
+                if os.path.exists(f):
+                    st.code(_read(f, 2000))
+                    found_sm = True
+                    break
+            if not found_sm:
+                st.info("No data.")
+
+        # Screenshots
+        st.markdown("**🖥️ Screenshots**")
+        imgs = glob.glob(os.path.join(sp, "*.png"))
+        if imgs:
+            ic = st.columns(min(len(imgs), 3))
+            for i, img in enumerate(imgs):
+                ic[i % 3].image(img, caption=os.path.basename(img), use_container_width=True)
+        else:
+            st.info("No screenshots captured.")
+
+        # Raw file browser
+        with st.expander("📁 Browse all files for this subdomain"):
+            sub_files = sorted([
+                f for f in os.listdir(sp)
+                if os.path.isfile(os.path.join(sp, f))
+            ])
+            if sub_files:
+                picked = st.selectbox("File:", sub_files, key=f"picker_{selected_sub}")
+                fp = os.path.join(sp, picked)
+                if picked.lower().endswith(".png"):
+                    st.image(fp)
                 else:
-                    st.info("No subdomains found yet.")
-
-            with c2:
-                st.markdown("### 🔌 Open Ports")
-                port_data = safe_read(f"{report_path}/ports.txt")
-                if port_data:
-                    st.text_area("Port Scan Results", port_data, height=300)
-                else:
-                    st.info("No open ports found.")
-
-            with c3:
-                st.markdown("### 📒 DNS Records")
-                dns_data = safe_read(f"{report_path}/dns.txt")
-                if dns_data:
-                    st.code(dns_data)
-                else:
-                    st.info("No DNS data found.")
-
-        # ── TAB 3: Security ───────────────────────────────────────────────────
-        with tab3:
-            c1, c2 = st.columns(2, gap="medium")
-            with c1:
-                st.markdown("### 🔥 WAF / CDN Fingerprint")
-                waf_data = safe_read(f"{report_path}/waf.txt")
-                if waf_data:
-                    st.error(waf_data)
-                else:
-                    st.info("No WAF data found.")
-
-                st.markdown("### ⚙️ Technology Stack")
-                tech_data = safe_read(f"{report_path}/technologies.txt")
-                if tech_data:
-                    st.code(tech_data)
-                else:
-                    st.info("No tech stack data.")
-
-                st.markdown("### 🛡️ HTTP Security Headers")
-                headers_data = safe_read(f"{report_path}/http_headers.txt")
-                if headers_data:
-                    st.code(headers_data)
-                else:
-                    st.info("No headers data.")
-
-            with c2:
-                st.markdown("### 🔐 SSL / TLS Certificate")
-                ssl_data = safe_read(f"{report_path}/ssl_info.txt")
-                if ssl_data:
-                    st.success(ssl_data)
-                else:
-                    st.info("No SSL data found.")
-
-                st.markdown("### ⚠️ Subdomain Takeover")
-                takeover_data = safe_read(f"{report_path}/takeover.txt")
-                if takeover_data:
-                    st.code(takeover_data)
-                else:
-                    st.info("No takeover data.")
-
-                st.markdown("### 💣 DoS Resistance")
-                dos_data = safe_read(f"{report_path}/dos_vuln.txt")
-                if dos_data:
-                    st.code(dos_data)
-                else:
-                    st.info("No DoS data found.")
-
-        # ── TAB 4: Crawler ────────────────────────────────────────────────────
-        with tab4:
-            c1, c2, c3 = st.columns(3, gap="medium")
-            with c1:
-                st.markdown("### 🔑 JS & Secrets")
-                js_data = safe_read(f"{report_path}/js_analysis.txt")
-                if js_data:
-                    st.text_area("JS Analysis", js_data, height=280)
-                else:
-                    st.info("No JS/secret data.")
-
-                st.markdown("### 📁 Directory Scan")
-                dir_data = safe_read(f"{report_path}/dir_scan.txt")
-                if dir_data:
-                    st.text_area("Exposed Paths", dir_data, height=200)
-                else:
-                    st.info("No exposed directories found.")
-
-            with c2:
-                st.markdown("### 🤖 Robots.txt")
-                robots_data = safe_read(f"{report_path}/robots.txt")
-                if robots_data:
-                    st.code(robots_data)
-                else:
-                    st.info("No robots.txt data.")
-
-                st.markdown("### ✉️ Email Intel")
-                email_data = safe_read(f"{report_path}/email_intel.txt")
-                if email_data:
-                    st.code(email_data)
-                else:
-                    st.info("No email data found.")
-
-            with c3:
-                st.markdown("### 🗺️ Sitemap")
-                sitemap_data = safe_read(f"{report_path}/sitemap.xml") or safe_read(f"{report_path}/sitemap.txt")
-                if sitemap_data:
-                    st.code(sitemap_data[:5000])
-                else:
-                    st.info("No sitemap data.")
-
-        # ── TAB 5: Raw Logs ───────────────────────────────────────────────────
-        with tab5:
-            st.markdown("### 📂 All Generated Files")
-            try:
-                all_files = sorted(os.listdir(report_path))
-            except Exception:
-                all_files = []
-
-            if not all_files:
-                st.info("No report files found yet.")
+                    st.code(_read(fp, 6000))
             else:
-                selected_file = st.selectbox(
-                    "Select a file to view:",
-                    all_files,
-                    format_func=lambda x: f"📄 {x}"
-                )
-                if selected_file:
-                    file_path = os.path.join(report_path, selected_file)
-                    if selected_file.endswith(".png"):
-                        st.image(file_path, use_container_width=True)
-                    elif selected_file.endswith((".html", ".htm")):
-                        st.markdown(f"[🔗 Open in browser (HTML report)]({file_path})")
-                        st.code(safe_read(file_path)[:5000])
-                    else:
-                        content = safe_read(file_path)
-                        if content:
-                            st.code(content)
-                        else:
-                            st.warning("File is empty or cannot be read.")
+                st.info("No files yet.")
+
+else:
+    # Welcome screen
+    st.markdown(f"""
+    <div style="text-align:center;padding:70px 0;">
+        <h2 style="color:#f97316!important;font-size:2rem;letter-spacing:4px;">🦊 WEBFOX {VERSION}</h2>
+        <p style="color:#555;font-size:1rem;margin-top:6px;">Advanced Multi-Target Recon Framework</p>
+        <p style="color:#f97316;font-size:0.8rem;margin-top:2px;">Coded by {AUTHOR}</p>
+        <hr style="border-color:#1f1f1f;margin:30px auto;width:60%;">
+        <p style="color:#444;font-size:0.85rem;">
+            Enter a domain in the sidebar &nbsp;→&nbsp; choose a scan mode &nbsp;→&nbsp; click <strong>EXECUTE SCAN</strong>
+        </p>
+        <p style="color:#333;font-size:0.75rem;margin-top:12px;">
+            Reports persist between sessions. Enter a previously scanned domain to view cached results.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)

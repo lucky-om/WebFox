@@ -1,195 +1,102 @@
-"""
-WebFox — Enhanced Port Scanner with Service Banner Grabbing
-Covers 50 important ports, grabs service banners and categorizes by risk level.
-
-Author : Lucky | WebFox Recon Framework v4.0
-"""
 import socket
-import threading
-from urllib.parse import urlparse
-from colorama import Fore, init
+import concurrent.futures
+from colorama import Fore
 
-init(autoreset=True)
-
-# Extended port list organized by risk category
-PORT_LIST = {
-    # Remote Access (HIGH RISK if exposed)
-    22:   ("SSH",                "HIGH"),
-    23:   ("Telnet",             "CRITICAL"),
-    3389: ("RDP (Remote Desktop)","CRITICAL"),
-    5900: ("VNC",                "CRITICAL"),
-    5901: ("VNC Alt",            "HIGH"),
-    512:  ("rexec",              "CRITICAL"),
-    513:  ("rlogin",             "CRITICAL"),
-    514:  ("rsh",                "CRITICAL"),
-
-    # Web Servers
-    80:   ("HTTP",               "LOW"),
-    443:  ("HTTPS",              "LOW"),
-    8000: ("HTTP Alt",           "MEDIUM"),
-    8080: ("HTTP Proxy/Alt",     "MEDIUM"),
-    8443: ("HTTPS Alt",          "MEDIUM"),
-    8888: ("HTTP Alt 2",         "MEDIUM"),
-    9000: ("PHP-FPM / Web",      "MEDIUM"),
-    3000: ("Node.js / Dev",      "MEDIUM"),
-    4000: ("Dev Server",         "MEDIUM"),
-    5000: ("Dev / Flask",        "MEDIUM"),
-
-    # File Transfer
-    21:   ("FTP",                "HIGH"),
-    20:   ("FTP Data",           "HIGH"),
-    69:   ("TFTP",               "HIGH"),
-    2049: ("NFS",                "HIGH"),
-
-    # Email
-    25:   ("SMTP",               "MEDIUM"),
-    587:  ("SMTP Submission",    "LOW"),
-    465:  ("SMTPS",              "LOW"),
-    110:  ("POP3",               "MEDIUM"),
-    995:  ("POP3S",              "LOW"),
-    143:  ("IMAP",               "MEDIUM"),
-    993:  ("IMAPS",              "LOW"),
-
-    # DNS
-    53:   ("DNS",                "MEDIUM"),
-
-    # Databases (CRITICAL if publicly exposed)
-    3306: ("MySQL",              "CRITICAL"),
-    5432: ("PostgreSQL",         "CRITICAL"),
-    1433: ("MSSQL",              "CRITICAL"),
-    1521: ("Oracle DB",          "CRITICAL"),
-    27017:("MongoDB",            "CRITICAL"),
-    6379: ("Redis",              "CRITICAL"),
-    11211:("Memcached",          "CRITICAL"),
-    9200: ("Elasticsearch",      "CRITICAL"),
-    5984: ("CouchDB",            "CRITICAL"),
-    7474: ("Neo4j",              "HIGH"),
-
-    # Message Queues / Infra
-    5672: ("RabbitMQ AMQP",      "HIGH"),
-    15672:("RabbitMQ Mgmt",      "HIGH"),
-    9092: ("Kafka",              "HIGH"),
-    2181: ("Zookeeper",          "HIGH"),
-    2375: ("Docker API (HTTP!)", "CRITICAL"),
-    2376: ("Docker API TLS",     "HIGH"),
-    6443: ("Kubernetes API",     "HIGH"),
-
-    # Network Services
-    135:  ("MSRPC",              "HIGH"),
-    139:  ("NetBIOS",            "HIGH"),
-    445:  ("SMB",                "CRITICAL"),
-
-    # Misc
-    161:  ("SNMP",               "HIGH"),
-    162:  ("SNMP Trap",          "MEDIUM"),
-    389:  ("LDAP",               "HIGH"),
-    636:  ("LDAPS",              "MEDIUM"),
-    8161: ("ActiveMQ Admin",     "CRITICAL"),
+# Comprehensive port list with service descriptions
+TOP_PORTS = {
+    21: "FTP",       22: "SSH",        23: "Telnet",     25: "SMTP",
+    53: "DNS",       67: "DHCP",       69: "TFTP",       80: "HTTP",
+    88: "Kerberos",  110: "POP3",      111: "RPC",       119: "NNTP",
+    123: "NTP",      135: "RPC/DCOM",  137: "NetBIOS-NS",138: "NetBIOS-DGM",
+    139: "NetBIOS",  143: "IMAP",      161: "SNMP",      162: "SNMP-Trap",
+    179: "BGP",      389: "LDAP",      443: "HTTPS",     445: "SMB",
+    465: "SMTPS",    587: "SMTP-Sub",  636: "LDAPS",     993: "IMAPS",
+    995: "POP3S",    1080:"SOCKS",     1194:"OpenVPN",   1433:"MSSQL",
+    1521:"Oracle",   1723:"PPTP",      2049:"NFS",       2375:"Docker",
+    2376:"Docker-TLS",3306:"MySQL",    3389:"RDP",       4444:"Metasploit",
+    5432:"PostgreSQL",5900:"VNC",      5901:"VNC-1",     6379:"Redis",
+    6443:"K8s-API",  7001:"WebLogic",  8000:"HTTP-Alt",  8008:"HTTP-Alt",
+    8080:"HTTP-Proxy",8443:"HTTPS-Alt",8888:"Jupyter",   9000:"PHP-FPM",
+    9090:"Prometheus",9200:"Elasticsearch",9300:"Elasticsearch",
+    10000:"Webmin",  11211:"Memcached",27017:"MongoDB",  27018:"MongoDB",
+    50070:"Hadoop",  50075:"Hadoop",
 }
 
-RISK_COLOR = {
-    "CRITICAL": Fore.RED,
-    "HIGH":     Fore.YELLOW,
-    "MEDIUM":   Fore.CYAN,
-    "LOW":      Fore.GREEN,
-}
+# Ports with elevated risk when open
+RISKY_PORTS = {23, 135, 137, 138, 139, 445, 1433, 2375, 3306, 3389, 4444,
+               5432, 5900, 5901, 6379, 7001, 8888, 9000, 9200, 10000, 11211, 27017, 27018}
 
-
-def get_clean_ip(target):
-    try:
-        if "://" not in target:
-            target = "http://" + target
-        parsed = urlparse(target)
-        hostname = parsed.netloc.split(":")[0]
-        ip = socket.gethostbyname(hostname)
-        return ip, hostname
-    except Exception:
-        return None, None
-
-
-def grab_banner(ip, port, timeout=2):
-    """Attempt to grab a service banner from an open port."""
+def _banner_grab(ip, port, timeout=2.0):
+    """Try to grab a service banner."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((ip, port))
-        # Send an HTTP-style request for web ports, else just wait for banner
-        if port in (80, 8080, 8000, 8888, 3000, 4000, 5000, 9000):
-            s.send(b"HEAD / HTTP/1.0\r\nHost: localhost\r\n\r\n")
-        banner = s.recv(256).decode('utf-8', errors='ignore').strip()
+        s.sendall(b"HEAD / HTTP/1.0\r\n\r\n" if port in (80, 8080, 8000, 8008) else b"\r\n")
+        banner = s.recv(1024).decode("utf-8", errors="ignore").strip()
         s.close()
-        # Sanitize newlines
-        return banner.replace("\r", " ").replace("\n", " ")[:150]
-    except Exception:
+        return banner[:120] if banner else ""
+    except:
         return ""
 
-
 def scan(domain, threads, save_path):
-    target_ip, clean_hostname = get_clean_ip(domain)
+    print(Fore.CYAN + f"[*] Port scanning {domain} ({len(TOP_PORTS)} ports, {threads} threads)...")
 
-    if not target_ip:
-        print(Fore.RED + f"  [-] Could not resolve: {domain}")
+    try:
+        ip = socket.gethostbyname(domain)
+    except Exception as e:
+        print(Fore.RED + f"[-] Could not resolve {domain}: {e}")
         return
 
-    print(Fore.CYAN + f"  [*] Port scanning {clean_hostname} ({target_ip}) — {len(PORT_LIST)} ports...")
+    print(Fore.BLUE + f"    > Resolved to {ip}")
 
-    results = []
-    results_lock = threading.Lock()
-    ports = list(PORT_LIST.keys())
+    open_ports = []
 
     def check(port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1.5)
+        s.settimeout(0.8)
         try:
-            result = s.connect_ex((target_ip, port))
+            result = s.connect_ex((ip, port))
             if result == 0:
-                service, risk = PORT_LIST.get(port, ("Unknown", "LOW"))
-                banner = grab_banner(target_ip, port)
-                banner_str = f" | Banner: {banner}" if banner else ""
-                line = {
-                    "port": port,
-                    "service": service,
-                    "risk": risk,
-                    "banner": banner,
-                    "display": f"Port {port:<6}: OPEN | {service:<25} | Risk: {risk}{banner_str}",
-                }
-                with results_lock:
-                    results.append(line)
-        except Exception:
+                service = TOP_PORTS.get(port, "Unknown")
+                banner  = _banner_grab(ip, port)
+                risk    = "[RISKY]" if port in RISKY_PORTS else ""
+                return (port, service, banner, risk)
+        except:
             pass
         finally:
             s.close()
+        return None
 
-    # Use threading to scan all ports in parallel
-    thread_list = [threading.Thread(target=check, args=(p,)) for p in ports]
-    for t in thread_list:
-        t.daemon = True
-        t.start()
-    for t in thread_list:
-        t.join(timeout=5)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as ex:
+        futures = {ex.submit(check, p): p for p in TOP_PORTS}
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                open_ports.append(result)
 
-    # Sort by risk seriousness then port number
-    risk_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-    results.sort(key=lambda x: (risk_order.get(x["risk"], 4), x["port"]))
+    open_ports.sort(key=lambda x: x[0])
 
-    # Print critical ones immediately
-    for r in results:
-        color = RISK_COLOR.get(r["risk"], Fore.WHITE)
-        print(color + f"  {r['display']}")
+    lines = [
+        f"PORT SCAN REPORT: {domain} ({ip})",
+        "=" * 60,
+        f"Scanned : {len(TOP_PORTS)} ports",
+        f"Open    : {len(open_ports)} ports",
+        "",
+        f"{'PORT':<8}{'SERVICE':<18}{'RISK':<10}BANNER",
+        "-" * 60,
+    ]
 
-    # Write to file
-    try:
-        with open(f"{save_path}/ports.txt", "w", encoding="utf-8") as f:
-            f.write(f"PORT SCAN RESULTS: {clean_hostname} ({target_ip})\n")
-            f.write(f"Total ports checked: {len(PORT_LIST)}\n")
-            f.write("=" * 50 + "\n\n")
-            if results:
-                for r in results:
-                    f.write(r["display"] + "\n")
-            else:
-                f.write("No open ports found.\n")
-    except Exception as e:
-        print(Fore.RED + f"  [-] Port save error: {e}")
+    for port, service, banner, risk in open_ports:
+        banner_short = f" | {banner[:60]}" if banner else ""
+        lines.append(f"{port:<8}{service:<18}{risk:<10}{banner_short}")
 
-    critical_count = sum(1 for r in results if r["risk"] == "CRITICAL")
-    print(Fore.GREEN + f"  [+] Port scan complete. {len(results)} open ({critical_count} critical) out of {len(PORT_LIST)} checked.")
+    risky_open = [p for p, s, b, r in open_ports if p in RISKY_PORTS]
+    if risky_open:
+        lines += ["", f"[!] HIGH-RISK PORTS OPEN: {', '.join(str(p) for p in risky_open)}"]
+        lines.append("    These ports may expose critical services. Investigate immediately.")
+
+    with open(f"{save_path}/ports.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(Fore.GREEN + f"[+] Port scan complete. {len(open_ports)} open ports. {len(risky_open)} high-risk.")

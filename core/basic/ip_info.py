@@ -1,127 +1,143 @@
-"""
-WebFox — Enhanced IP Geolocation & Network Info Scanner
-Multi-API fallback, ASN analysis, reverse DNS, CDN/proxy detection,
-hosting provider identification, and abuse contact lookup.
-
-Author : Lucky | WebFox Recon Framework v4.0
-"""
 import socket
 import requests
 from colorama import Fore
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from core.stealth import get_stealth_session, jitter
 
-CDN_ASNS = {
-    "AS13335": "Cloudflare", "AS209242": "Cloudflare",
-    "AS16509": "Amazon AWS", "AS14618": "Amazon AWS",
-    "AS15169": "Google Cloud", "AS396982": "Google Cloud",
-    "AS8075":  "Microsoft Azure", "AS8068": "Microsoft Azure",
-    "AS54113": "Fastly CDN",
-    "AS60068": "CDN77",
-    "AS22822": "Limelight Networks",
-    "AS20940": "Akamai",
-    "AS36183": "Akamai",
-}
+HEADERS = {'User-Agent': 'Mozilla/5.0 (WebFox/4.0)'}
+
 
 def scan(domain, save_path):
-    print(Fore.CYAN + f"[*] IP geolocation and ASN analysis for {domain}...")
-    session = get_stealth_session()
+    print(Fore.CYAN + f"[*] Fetching IP geolocation & network intelligence for {domain}...")
 
-    output = [f"IP & NETWORK INTELLIGENCE: {domain}", "=" * 50]
+    # ── Resolve IPs ────────────────────────────────────────────────────────
+    ipv4 = None
+    ipv6 = None
 
-    # Resolve all IP addresses for the domain
-    all_ips = []
     try:
-        info = socket.getaddrinfo(domain, None)
-        all_ips = list({addr[4][0] for addr in info})
-        output.append(f"\n[DNS RESOLUTION]")
-        output.append(f"  Domain: {domain}")
-        output.append(f"  Resolved IPs ({len(all_ips)}): {', '.join(all_ips)}")
-    except Exception as e:
-        output.append(f"\n[-] DNS resolution failed: {e}")
-        with open(f"{save_path}/ip_location.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(output))
-        return
-
-    primary_ip = all_ips[0] if all_ips else None
-    if not primary_ip:
-        return
-
-    # Reverse DNS
-    output.append(f"\n[REVERSE DNS]")
-    try:
-        rdns = socket.gethostbyaddr(primary_ip)[0]
-        output.append(f"  PTR Record: {rdns}")
-    except Exception:
-        output.append(f"  PTR Record: None")
-
-    # Main geo/ASN lookup via ip-api.com
-    geo_data = {}
-    try:
-        jitter(0.2, 0.4)
-        r = session.get(
-            f"http://ip-api.com/json/{primary_ip}?fields=status,message,continent,country,regionName,city,zip,lat,lon,timezone,isp,org,as,asname,query,proxy,hosting",
-            timeout=12
-        )
-        geo_data = r.json()
-    except Exception:
-        pass
-
-    output.append(f"\n[GEOLOCATION (Primary IP: {primary_ip})]")
-    if geo_data and geo_data.get("status") == "success":
-        output.append(f"  Continent  : {geo_data.get('continent', 'N/A')}")
-        output.append(f"  Country    : {geo_data.get('country', 'N/A')}")
-        output.append(f"  Region     : {geo_data.get('regionName', 'N/A')}")
-        output.append(f"  City       : {geo_data.get('city', 'N/A')}")
-        output.append(f"  Zip Code   : {geo_data.get('zip', 'N/A')}")
-        output.append(f"  Timezone   : {geo_data.get('timezone', 'N/A')}")
-        output.append(f"  Lat/Lon    : {geo_data.get('lat', 'N/A')}, {geo_data.get('lon', 'N/A')}")
-        output.append(f"  Maps Link  : https://maps.google.com/?q={geo_data.get('lat')},{geo_data.get('lon')}")
-
-        output.append(f"\n[NETWORK / ASN]")
-        output.append(f"  ISP        : {geo_data.get('isp', 'N/A')}")
-        output.append(f"  Organization: {geo_data.get('org', 'N/A')}")
-        asn_raw = geo_data.get('as', '')
-        output.append(f"  ASN        : {asn_raw}")
-        output.append(f"  ASN Name   : {geo_data.get('asname', 'N/A')}")
-
-        # Check if known CDN/Cloud ASN
-        for asn_code, provider in CDN_ASNS.items():
-            if asn_code in asn_raw:
-                output.append(f"  ⚠️  CDN/Cloud Detected: Hosted on {provider} — Real server IP may be hidden.")
-                break
-
-        output.append(f"\n[PROXY / VPN / HOSTING DETECTION]")
-        is_proxy = geo_data.get('proxy', False)
-        is_hosting = geo_data.get('hosting', False)
-        output.append(f"  Is Proxy/VPN: {'YES ⚠️' if is_proxy else 'No ✓'}")
-        output.append(f"  Is Hosting  : {'YES (Datacenter / Cloud)' if is_hosting else 'No (Residential/Business)'}")
-
-    else:
-        output.append(f"  IP-API query failed or rate-limited. Raw IP: {primary_ip}")
-
-    # Attempt ipinfo.io as secondary source
-    jitter(0.3, 0.6)
-    try:
-        r2 = session.get(f"https://ipinfo.io/{primary_ip}/json", timeout=10)
-        ipinfo = r2.json()
-        output.append(f"\n[IPINFO.IO CROSS-CHECK]")
-        output.append(f"  Hostname: {ipinfo.get('hostname', 'N/A')}")
-        output.append(f"  City    : {ipinfo.get('city', 'N/A')}")
-        output.append(f"  Region  : {ipinfo.get('region', 'N/A')}")
-        output.append(f"  Country : {ipinfo.get('country', 'N/A')}")
-        output.append(f"  Org/ASN : {ipinfo.get('org', 'N/A')}")
+        ipv4 = socket.gethostbyname(domain)
     except Exception:
         pass
 
     try:
-        with open(f"{save_path}/ip_location.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(output))
-    except Exception as e:
-        print(Fore.RED + f"  [-] IP save error: {e}")
+        info = socket.getaddrinfo(domain, None, socket.AF_INET6)
+        if info:
+            ipv6 = info[0][4][0]
+    except Exception:
+        pass
 
-    city = geo_data.get('city', 'N/A')
-    country = geo_data.get('country', 'N/A')
-    print(Fore.GREEN + f"  [+] IP scan done. Location: {city}, {country}. ASN: {geo_data.get('asname', 'N/A')}")
+    ip = ipv4 or ipv6
+    if not ip:
+        print(Fore.RED + f"[-] Could not resolve IP for {domain}")
+        with open(f"{save_path}/ip_location.txt", "w", encoding="utf-8") as f:
+            f.write(f"IP resolution failed for {domain}\n")
+        return
+
+    # ── PTR (reverse DNS) ──────────────────────────────────────────────────
+    ptr = "N/A"
+    try:
+        ptr = socket.gethostbyaddr(ip)[0]
+    except Exception:
+        pass
+
+    # ── Primary geo: ip-api.com ────────────────────────────────────────────
+    data = {}
+    try:
+        fields = ("status,message,continent,country,regionName,city,zip,"
+                  "lat,lon,timezone,isp,org,as,asname,reverse,mobile,proxy,hosting,query")
+        r = requests.get(
+            f"http://ip-api.com/json/{ip}?fields={fields}",
+            headers=HEADERS,
+            timeout=10
+        ).json()
+        if r.get("status") == "success":
+            data = r
+    except Exception:
+        pass
+
+    # ── Fallback geo: ipinfo.io ────────────────────────────────────────────
+    if not data:
+        try:
+            r2 = requests.get(
+                f"https://ipinfo.io/{ip}/json",
+                headers=HEADERS,
+                timeout=10
+            ).json()
+            loc = r2.get("loc", "0,0").split(",")
+            data = {
+                "query"     : ip,
+                "continent" : "",
+                "country"   : r2.get("country",  "Unknown"),
+                "regionName": r2.get("region",   "Unknown"),
+                "city"      : r2.get("city",     "Unknown"),
+                "zip"       : r2.get("postal",   "Unknown"),
+                "lat"       : loc[0] if len(loc) > 0 else "Unknown",
+                "lon"       : loc[1] if len(loc) > 1 else "Unknown",
+                "timezone"  : r2.get("timezone", "Unknown"),
+                "isp"       : r2.get("org",      "Unknown"),
+                "org"       : r2.get("org",      "Unknown"),
+                "as"        : r2.get("org",      "Unknown"),
+                "asname"    : "",
+                "reverse"   : r2.get("hostname", ""),
+                "mobile"    : False,
+                "proxy"     : False,
+                "hosting"   : False,
+            }
+        except Exception:
+            pass
+
+    # ── Shodan InternetDB (no API key) ────────────────────────────────────
+    shodan_lines = []
+    try:
+        sd = requests.get(
+            f"https://internetdb.shodan.io/{ip}",
+            headers=HEADERS,
+            timeout=8
+        ).json()
+        open_ports  = ", ".join(str(p) for p in sd.get("ports",     [])) or "None"
+        cpes        = ", ".join(sd.get("cpes",      [])) or "None"
+        vulns       = ", ".join(sd.get("vulns",     [])) or "None"
+        hostnames   = ", ".join(sd.get("hostnames", [])) or "None"
+        shodan_lines = [
+            "",
+            "[+] SHODAN INTERNETDB:",
+            "-" * 44,
+            f"  Open Ports  : {open_ports}",
+            f"  CPE Fingerp : {cpes}",
+            f"  Known CVEs  : {vulns}",
+            f"  Hostnames   : {hostnames}",
+        ]
+    except Exception:
+        pass
+
+    # ── Build report ──────────────────────────────────────────────────────
+    def g(key): return data.get(key, "Unknown")
+
+    lines = [
+        f"GEOLOCATION & NETWORK REPORT: {domain}",
+        "=" * 47,
+        f"IPv4 Address  : {ipv4 or 'N/A'}",
+        f"IPv6 Address  : {ipv6 or 'N/A'}",
+        f"PTR (rDNS)    : {ptr}",
+        f"Continent     : {g('continent')}",
+        f"Country       : {g('country')}",
+        f"Region        : {g('regionName')}",
+        f"City          : {g('city')}",
+        f"Zip Code      : {g('zip')}",
+        f"Latitude      : {g('lat')}",
+        f"Longitude     : {g('lon')}",
+        f"Timezone      : {g('timezone')}",
+        f"ISP           : {g('isp')}",
+        f"Organization  : {g('org')}",
+        f"ASN           : {g('as')}",
+        f"ASN Name      : {g('asname')}",
+        f"Mobile Network: {'Yes' if data.get('mobile') else 'No'}",
+        f"Proxy / VPN   : {'Yes' if data.get('proxy') else 'No'}",
+        f"Hosting / DC  : {'Yes' if data.get('hosting') else 'No'}",
+    ] + shodan_lines
+
+    with open(f"{save_path}/ip_location.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    city    = g('city')
+    country = g('country')
+    asn     = g('as')
+    print(Fore.GREEN + f"[+] IP scan complete: {city}, {country} | {asn}")

@@ -7,9 +7,5 @@ python-whois
 dnspython
 builtwith
 urllib3
-pandas
-plotly
-tqdm
 beautifulsoup4
 lxml
-python-socketio

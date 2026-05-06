@@ -1,167 +1,177 @@
-"""
-WebFox — Enhanced SSL/TLS Scanner
-Certificate details, expiry, weak cipher suites, TLS protocol versions,
-and certificate transparency log lookups.
-
-Author : Lucky | WebFox Recon Framework v4.0
-"""
 import ssl
 import socket
-from datetime import datetime, timezone
+import hashlib
+import requests
+from datetime import datetime
 from colorama import Fore
-import sys
-import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from core.stealth import get_stealth_session, jitter
 
-WEAK_PROTOCOLS = ["SSLv2", "SSLv3", "TLSv1", "TLSv1.1"]
-STRONG_PROTOCOLS = ["TLSv1.2", "TLSv1.3"]
+HEADERS = {'User-Agent': 'Mozilla/5.0 (WebFox/4.0)'}
 
 
-def _test_protocol(domain, protocol):
-    """Try to connect with a specific deprecated protocol — tests if server accepts weak ones."""
-    proto_map = {
-        "SSLv2":  ssl.PROTOCOL_SSLv23,
-        "SSLv3":  ssl.PROTOCOL_SSLv23,
-        "TLSv1":  ssl.PROTOCOL_TLSv1  if hasattr(ssl, 'PROTOCOL_TLSv1') else None,
-        "TLSv1.1": ssl.PROTOCOL_TLSv1_1 if hasattr(ssl, 'PROTOCOL_TLSv1_1') else None,
-        "TLSv1.2": ssl.PROTOCOL_TLSv1_2 if hasattr(ssl, 'PROTOCOL_TLSv1_2') else None,
-    }
-    proto = proto_map.get(protocol)
-    if proto is None:
-        return False
+def _days_left(date_str):
+    """Return integer days until expiry, or string 'Unknown'."""
     try:
-        ctx = ssl.SSLContext(proto)
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        with socket.create_connection((domain, 443), timeout=5) as sock:
-            with ctx.wrap_socket(sock, server_hostname=domain):
-                return True
+        dt = datetime.strptime(date_str, r'%b %d %H:%M:%S %Y %Z')
+        return (dt - datetime.utcnow()).days
     except Exception:
-        return False
+        return "Unknown"
 
 
-def _get_ct_log_count(domain, session):
-    """Query crt.sh for how many historical certificates exist for this domain."""
-    try:
-        r = session.get(f"https://crt.sh/?q={domain}&output=json", timeout=15, verify=False)
-        if r.status_code == 200:
-            data = r.json()
-            return len(data)
-    except Exception:
-        pass
-    return 0
+def _fetch_cert(domain, port=443):
+    """
+    Returns (cert_dict, cert_bytes, cipher_tuple, tls_version_str) or raises.
+    Tries strict verification first; if that fails, retries without verification
+    so we can still report cert details even for broken chains.
+    """
+    for verify in (True, False):
+        try:
+            ctx = ssl.create_default_context()
+            if not verify:
+                ctx.check_hostname = False
+                ctx.verify_mode    = ssl.CERT_NONE
+            with socket.create_connection((domain, port), timeout=10) as raw:
+                with ctx.wrap_socket(raw, server_hostname=domain) as s:
+                    return (
+                        s.getpeercert(),
+                        s.getpeercert(binary_form=True),
+                        s.cipher(),
+                        s.version(),
+                        verify,          # True = verified OK
+                    )
+        except Exception:
+            continue
+    raise RuntimeError("Could not establish TLS connection on port 443 or 8443")
 
 
 def scan(domain, save_path):
-    print(Fore.CYAN + f"[*] Deep SSL/TLS analysis for {domain}...")
-    session = get_stealth_session()
-    output = [f"SSL/TLS SECURITY REPORT: {domain}", "=" * 50]
+    print(Fore.CYAN + f"[*] Running SSL/TLS deep inspection for {domain}...")
+    lines = [f"SSL/TLS INSPECTION REPORT: {domain}", "=" * 52]
 
-    cert_data = {}
-    tls_version_used = "Unknown"
-
-    # --- Main cert grab ---
+    # ── Connect ────────────────────────────────────────────────────────────
     try:
-        ctx = ssl.create_default_context()
-        with socket.create_connection((domain, 443), timeout=10) as s:
-            with ctx.wrap_socket(s, server_hostname=domain) as ss:
-                c = ss.getpeercert()
-                tls_version_used = ss.version() or "Unknown"
-                cipher = ss.cipher()
-                cert_data = c
-    except ssl.SSLCertVerificationError as e:
-        output.append(f"\n⚠️  CERTIFICATE VERIFICATION ERROR: {e}")
-        output.append("  This could indicate a self-signed or expired cert.")
+        cert, cert_bin, cipher, tls_ver, verified = _fetch_cert(domain)
     except Exception as e:
-        output.append(f"\n[-] SSL Connection Failed: {e}")
-        try:
-            with open(f"{save_path}/ssl_info.txt", "w", encoding="utf-8") as f:
-                f.write("\n".join(output))
-        except Exception:
-            pass
+        lines.append(f"\n[-] Could not establish TLS connection: {e}")
+        with open(f"{save_path}/ssl_info.txt", "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        print(Fore.RED + f"[-] SSL scan failed for {domain}: {e}")
         return
 
-    # --- Certificate Details ---
-    output.append("\n[CERTIFICATE DETAILS]")
-    subject = dict(x[0] for x in cert_data.get('subject', []))
-    issuer  = dict(x[0] for x in cert_data.get('issuer', []))
+    if not verified:
+        lines.append("\n[!] CERTIFICATE CHAIN VERIFICATION FAILED — untrusted / self-signed")
 
-    cn = subject.get('commonName', 'Unknown')
-    issued_to_org = subject.get('organizationName', 'N/A')
-    issued_by = issuer.get('organizationName', 'Unknown')
-    issued_by_cn = issuer.get('commonName', '')
-    is_self_signed = cn == issued_by_cn or issued_by in ("", "Unknown")
+    # ── Certificate details ────────────────────────────────────────────────
+    subject = dict(x[0] for x in cert.get('subject', []))
+    issuer  = dict(x[0] for x in cert.get('issuer', []))
+    not_before = cert.get('notBefore', 'N/A')
+    not_after  = cert.get('notAfter',  'N/A')
+    days       = _days_left(not_after)
 
-    output.append(f"  Common Name  : {cn}")
-    output.append(f"  Org          : {issued_to_org}")
-    output.append(f"  Issued By    : {issued_by}")
-    output.append(f"  Self-Signed  : {'⚠️  YES — Not trusted by browsers!' if is_self_signed else 'No ✓'}")
-    output.append(f"  Serial No    : {cert_data.get('serialNumber', 'N/A')}")
-    output.append(f"  Version      : {cert_data.get('version', 'N/A')}")
+    expiry_note = ""
+    if isinstance(days, int):
+        if days < 0:
+            expiry_note = "  [CERTIFICATE EXPIRED!]"
+        elif days < 14:
+            expiry_note = f"  [CRITICAL: only {days} days remaining!]"
+        elif days < 30:
+            expiry_note = f"  [WARNING: {days} days remaining]"
 
-    # Expiry
-    fmt = r'%b %d %H:%M:%S %Y %Z'
-    not_before_str = cert_data.get('notBefore', '')
-    not_after_str  = cert_data.get('notAfter', '')
-    days_left = "Unknown"
-    expired = False
+    # SHA-256 fingerprint
+    fp = "N/A"
     try:
-        not_after_dt = datetime.strptime(not_after_str, fmt).replace(tzinfo=timezone.utc)
-        now = datetime.now(timezone.utc)
-        days_left = (not_after_dt - now).days
-        expired = days_left < 0
+        raw = hashlib.sha256(cert_bin).hexdigest().upper()
+        fp  = ":".join(raw[i:i+2] for i in range(0, len(raw), 2))
     except Exception:
         pass
 
-    output.append(f"  Valid From   : {not_before_str}")
-    output.append(f"  Valid Until  : {not_after_str}")
-    if expired:
-        output.append(f"  ⚠️  EXPIRED! Certificate expired {abs(days_left)} days ago.")
-    elif isinstance(days_left, int) and days_left < 30:
-        output.append(f"  ⚠️  EXPIRING SOON: {days_left} days remaining!")
-    else:
-        output.append(f"  Days Left    : {days_left} ✓")
+    lines += [
+        "",
+        "[+] CERTIFICATE DETAILS:",
+        "-" * 44,
+        f"  Issued To      : {subject.get('commonName', 'N/A')}",
+        f"  Organization   : {subject.get('organizationName', 'N/A')}",
+        f"  Country        : {subject.get('countryName', 'N/A')}",
+        f"  Issued By      : {issuer.get('commonName', 'N/A')} ({issuer.get('organizationName', 'N/A')})",
+        f"  Valid From     : {not_before}",
+        f"  Valid Until    : {not_after}{expiry_note}",
+        f"  Days Remaining : {days}",
+        f"  Serial Number  : {cert.get('serialNumber', 'N/A')}",
+        f"  Version        : {cert.get('version', 'N/A')}",
+        f"  SHA-256 FP     : {fp}",
+    ]
 
-    # SANs
-    sans = [item[1] for item in cert_data.get('subjectAltName', []) if item[0] == 'DNS']
-    output.append(f"\n  Subject Alt Names ({len(sans)}):")
-    for san in sans[:20]:
-        output.append(f"    - {san}")
-    if len(sans) > 20:
-        output.append(f"    ... and {len(sans) - 20} more")
+    # ── TLS handshake info ─────────────────────────────────────────────────
+    lines += [
+        "",
+        "[+] TLS HANDSHAKE:",
+        "-" * 44,
+        f"  Protocol       : {tls_ver}",
+        f"  Cipher Suite   : {cipher[0] if cipher else 'N/A'}",
+        f"  Key Bits       : {cipher[2] if cipher and len(cipher) > 2 else 'N/A'}",
+    ]
 
-    # --- TLS Protocol and Cipher ---
-    output.append(f"\n[TLS PROTOCOL & CIPHER]")
-    output.append(f"  Protocol     : {tls_version_used}")
-    output.append(f"  Cipher Suite : {cipher[0] if cipher else 'Unknown'}")
-    output.append(f"  Key Bits     : {cipher[2] if cipher else 'Unknown'}")
-
-    # Weak protocol testing
-    output.append(f"\n[WEAK PROTOCOL TESTING]")
-    for proto in WEAK_PROTOCOLS:
+    # Weak protocol probe (TLS 1.0 / 1.1)
+    weak = []
+    for min_v, max_v, label in [
+        (ssl.TLSVersion.TLSv1,   ssl.TLSVersion.TLSv1,   "TLS 1.0"),
+        (ssl.TLSVersion.TLSv1_1, ssl.TLSVersion.TLSv1_1, "TLS 1.1"),
+    ]:
         try:
-            result = _test_protocol(domain, proto)
-            if result:
-                output.append(f"  ⚠️  {proto}: ACCEPTED — Server supports deprecated protocol!")
-            else:
-                output.append(f"  {proto}: Rejected ✓")
+            ctx_w = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            ctx_w.check_hostname  = False
+            ctx_w.verify_mode     = ssl.CERT_NONE
+            ctx_w.minimum_version = min_v
+            ctx_w.maximum_version = max_v
+            with socket.create_connection((domain, 443), timeout=5) as raw:
+                with ctx_w.wrap_socket(raw, server_hostname=domain):
+                    weak.append(label)
         except Exception:
-            output.append(f"  {proto}: Could not test.")
+            pass
 
-    # --- Certificate Transparency Logs ---
-    output.append(f"\n[CERTIFICATE TRANSPARENCY LOGS]")
-    jitter(0.3, 0.6)
-    ct_count = _get_ct_log_count(domain, session)
-    output.append(f"  Total historical certs in CT logs: {ct_count}")
-    if ct_count > 50:
-        output.append(f"  Tip: Visit https://crt.sh/?q={domain} to review full certificate history.")
+    if weak:
+        lines.append(f"  Weak Protocols : [VULNERABLE] Accepts {', '.join(weak)}")
+    else:
+        lines.append("  Weak Protocols : [OK] TLS 1.0 / 1.1 not accepted")
 
+    # ── Subject Alt Names ──────────────────────────────────────────────────
+    sans = [v for t, v in cert.get('subjectAltName', []) if t == 'DNS']
+    lines += ["", f"[+] SUBJECT ALT NAMES ({len(sans)}):", "-" * 44]
+    for san in sorted(sans):
+        lines.append(f"  - {san}")
+
+    # ── CT logs via crt.sh ─────────────────────────────────────────────────
+    lines += ["", "[+] CERTIFICATE TRANSPARENCY (crt.sh):", "-" * 44]
     try:
-        with open(f"{save_path}/ssl_info.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(output))
+        r = requests.get(
+            f"https://crt.sh/?q={domain}&output=json",
+            timeout=12,
+            headers=HEADERS
+        )
+        if r.status_code == 200:
+            seen  = set()
+            count = 0
+            for entry in r.json()[:200]:
+                name = entry.get('name_value', '').strip()
+                if name and name not in seen:
+                    seen.add(name)
+                    exp   = entry.get('not_after', '')[:10]
+                    issn  = entry.get('issuer_name', '')[:50]
+                    lines.append(f"  [{exp}] {name:<40} via {issn}")
+                    count += 1
+                    if count >= 20:
+                        lines.append("  ... (truncated, see crt.sh for full list)")
+                        break
+            if count == 0:
+                lines.append("  No CT entries found.")
+        else:
+            lines.append(f"  crt.sh returned HTTP {r.status_code}")
     except Exception as e:
-        print(Fore.RED + f"  [-] SSL save error: {e}")
+        lines.append(f"  CT lookup failed: {e}")
 
-    exp_status = "EXPIRED" if expired else f"{days_left}d left"
-    print(Fore.GREEN + f"  [+] SSL scan complete. Cert by '{issued_by}', TLS: {tls_version_used}, Expiry: {exp_status}")
+    with open(f"{save_path}/ssl_info.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    status = (f"EXPIRED" if isinstance(days, int) and days < 0
+              else f"{days} days left" if isinstance(days, int)
+              else "unknown expiry")
+    print(Fore.GREEN + f"[+] SSL scan complete: {tls_ver}, {status}, {len(sans)} SANs")

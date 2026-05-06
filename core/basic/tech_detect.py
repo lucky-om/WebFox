@@ -1,184 +1,207 @@
-"""
-WebFox — Enhanced Technology Stack Detector
-Builtwith, HTTP header analysis, HTML fingerprinting, CMS detection,
-JavaScript framework detection, and CDN detection.
-
-Author : Lucky | WebFox Recon Framework v4.0
-"""
 import requests
 import re
 import os
 import subprocess
 from colorama import Fore
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from core.stealth import get_stealth_session, jitter
 
-# CMS/Framework fingerprints from HTML and headers
-CMS_FINGERPRINTS = {
-    "WordPress":      ["/wp-content/", "/wp-includes/", "wp-json", 'generator.*wordpress'],
-    "Joomla":         ["/media/jui/", "joomla!", "/components/com_"],
-    "Drupal":         ["/sites/default/files", "drupal", 'generator.*drupal'],
-    "Magento":        ["mage/cookies.js", "/skin/frontend/", "/js/mage/"],
-    "Shopify":        ["cdn.shopify.com", "shopify.com/s/files", "myshopify.com"],
-    "Wix":            ["wix.com/", "static.parastorage.com"],
-    "Squarespace":    ["squarespace.com", "static1.squarespace.com"],
-    "Ghost":          ["ghost.io", "/ghost/api/"],
-    "Django":         ["csrfmiddlewaretoken", "django"],
-    "Laravel":        ["laravel_session", "csrf_token", "laravel"],
-    "React":          ["react.development.js", "react.production.min.js", "__REACT_DEVTOOLS"],
-    "Vue.js":         ["vue.js", "vue.min.js", "__vue__"],
-    "Angular":        ["ng-version", "angular.js", "angular.min.js"],
-    "Next.js":        ["_next/static", "__NEXT_DATA__"],
-    "Nuxt.js":        ["_nuxt/", "__NUXT__"],
-    "Gatsby":         ["gatsby", "gatsby-image"],
-    "Bootstrap":      ["bootstrap.min.css", "bootstrap.css"],
-    "jQuery":         ["jquery.min.js", "jquery-"],
-    "Cloudflare":     ["cloudflare", "cf-ray"],
-    "Google Analytics": ["google-analytics.com/analytics", "gtag/js"],
-    "Google Tag Mgr": ["googletagmanager.com", "GTM-"],
-    "Hotjar":         ["hotjar.com/c/hotjar"],
-    "Intercom":       ["intercom.io", "widget.intercom.io"],
-    "Stripe":         ["js.stripe.com/v3"],
-    "Recaptcha":      ["google.com/recaptcha", "recaptcha/api"],
+HEADERS = {'User-Agent': 'Mozilla/5.0 (WebFox/4.0)'}
+
+TECH_SIGS = {
+    # CMS
+    "WordPress"       : [r'wp-content', r'wp-includes', r'wordpress'],
+    "Joomla"          : [r'joomla', r'/components/com_'],
+    "Drupal"          : [r'drupal', r'/sites/default/files'],
+    "Magento"         : [r'magento', r'Mage\.Cookies'],
+    "Shopify"         : [r'cdn\.shopify\.com', r'Shopify\.theme'],
+    "Ghost"           : [r'ghost\.org', r'/ghost/api/'],
+    "Wix"             : [r'wix\.com', r'wixstatic\.com'],
+    "Squarespace"     : [r'squarespace\.com', r'static\.squarespace\.com'],
+    "OpenCart"        : [r'route=common', r'OpenCart'],
+    "PrestaShop"      : [r'prestashop', r'/modules/'],
+    # Frameworks / Languages
+    "React"           : [r'react-dom', r'__reactFiber', r'data-reactroot'],
+    "Vue.js"          : [r'vue\.min\.js', r'__vue__'],
+    "Angular"         : [r'ng-version', r'angular\.min\.js'],
+    "Next.js"         : [r'_next/static', r'__NEXT_DATA__'],
+    "Nuxt.js"         : [r'__nuxt', r'_nuxt/'],
+    "Laravel"         : [r'laravel_session'],
+    "Django"          : [r'csrfmiddlewaretoken', r'django'],
+    "Rails"           : [r'authenticity_token', r'rails'],
+    "Express"         : [r'X-Powered-By.*Express'],
+    # Web servers
+    "Nginx"           : [r'nginx'],
+    "Apache"          : [r'apache'],
+    "IIS"             : [r'microsoft-iis', r'iis'],
+    "Caddy"           : [r'caddy'],
+    "LiteSpeed"       : [r'litespeed', r'lsphp'],
+    # CDN / Cloud
+    "Cloudflare"      : [r'cloudflare', r'cf-ray'],
+    "Fastly"          : [r'fastly'],
+    "Varnish"         : [r'x-varnish'],
+    "AWS CloudFront"  : [r'x-amz-cf-id'],
+    "Vercel"          : [r'x-vercel'],
+    "Netlify"         : [r'netlify'],
+    # Analytics
+    "Google Analytics": [r'google-analytics\.com', r'gtag\(', r'UA-\d+'],
+    "Google Tag Manager": [r'googletagmanager\.com', r'GTM-'],
+    "Facebook Pixel"  : [r'connect\.facebook\.net', r'fbq\('],
+    # JS Libraries
+    "jQuery"          : [r'jquery[\.\-]', r'jQuery'],
+    "Bootstrap"       : [r'bootstrap\.min\.js', r'bootstrap\.min\.css'],
+    "Tailwind"        : [r'tailwindcss', r'tailwind\.config'],
+    # Payments
+    "Stripe"          : [r'stripe\.com/v\d', r'pk_live_', r'pk_test_'],
+    "PayPal"          : [r'paypalobjects\.com'],
 }
 
-CMS_HEADER_FINGERPRINTS = {
-    "WordPress":  [("x-powered-by", "php"), ("x-pingback", "")],
-    "Drupal":     [("x-drupal-cache", ""), ("x-generator", "drupal")],
-    "Joomla":     [("x-content-encoded-by", "joomla")],
-    "SharePoint": [("microsoftsharepoint", ""), ("sprequestguid", "")],
-}
+INTERESTING_PATHS = [
+    "/robots.txt", "/sitemap.xml", "/.git/HEAD", "/.env",
+    "/wp-login.php", "/admin", "/phpmyadmin", "/login",
+    "/.htaccess", "/config.php", "/api/v1", "/graphql",
+    "/swagger.json", "/openapi.json", "/.well-known/security.txt",
+    "/actuator/health", "/server-status", "/.DS_Store",
+    "/backup.zip", "/dump.sql", "/web.config",
+]
+
+
+def _ttl_to_os(ttl):
+    if ttl <= 64:  return "Linux / Unix / macOS"
+    if ttl <= 128: return "Windows Server"
+    return "Cisco / Solaris / Network Device"
+
 
 def scan(domain, save_path):
-    print(Fore.CYAN + f"[*] Detecting tech stack, CMS, and frameworks for {domain}...")
-    session = get_stealth_session()
+    print(Fore.CYAN + f"[*] Tech stack & OS fingerprinting for {domain}...")
 
-    output = [f"TECHNOLOGY STACK ANALYSIS: {domain}", "=" * 50]
-    all_detected = {}
+    detected = {}
+    server       = "Hidden"
+    powered      = "Hidden"
+    content_type = "N/A"
+    x_aspnet     = "N/A"
+    x_aspnetmvc  = "N/A"
+    generator_val= "N/A"
+    response     = None
 
-    # 1. Get HTML source for fingerprinting
-    html_source = ""
-    response_headers = {}
-    cookies_str = ""
+    # ── HTTP fingerprinting ────────────────────────────────────────────────
     for proto in ["https", "http"]:
-        url = f"{proto}://{domain}"
         try:
-            r = session.get(url, timeout=15, verify=False)
-            html_source = r.text.lower()
-            response_headers = {k.lower(): v.lower() for k, v in r.headers.items()}
-            cookies_str = str(r.cookies.get_dict()).lower()
+            response = requests.get(
+                f"{proto}://{domain}",
+                headers=HEADERS,
+                timeout=15,
+                allow_redirects=True
+            )
             break
         except Exception:
-            continue
+            response = None
 
-    jitter(0.2, 0.5)
+    if response is not None:
+        body     = response.text[:60000]
+        combined = body + str(response.headers).lower()
 
-    # 2. HTML fingerprinting
-    detected_from_html = []
-    for tech, patterns in CMS_FINGERPRINTS.items():
-        for pattern in patterns:
-            if re.search(pattern, html_source, re.IGNORECASE):
-                detected_from_html.append(tech)
-                break
-    if detected_from_html:
-        all_detected["CMS / Frameworks (HTML)"] = detected_from_html
+        for tech, patterns in TECH_SIGS.items():
+            for pattern in patterns:
+                if re.search(pattern, combined, re.IGNORECASE):
+                    detected[tech] = True
+                    break
 
-    # 3. Header fingerprinting
-    detected_from_headers = []
-    for tech, sig_list in CMS_HEADER_FINGERPRINTS.items():
-        for (header_key, value_fragment) in sig_list:
-            h_val = response_headers.get(header_key, "")
-            if value_fragment == "" and h_val:
-                detected_from_headers.append(tech)
-                break
-            elif value_fragment and value_fragment in h_val:
-                detected_from_headers.append(tech)
-                break
-    if detected_from_headers:
-        all_detected["CMS / Frameworks (Headers)"] = detected_from_headers
+        server        = response.headers.get("Server",          "Hidden")
+        powered       = response.headers.get("X-Powered-By",    "Hidden")
+        content_type  = response.headers.get("Content-Type",    "N/A")
+        x_aspnet      = response.headers.get("X-AspNet-Version",    "N/A")
+        x_aspnetmvc   = response.headers.get("X-AspNetMvc-Version", "N/A")
 
-    # 4. Server & language from headers
-    server_hdr = response_headers.get("server", "")
-    powered_by  = response_headers.get("x-powered-by", "")
-    if server_hdr:
-        all_detected["Web Server"] = [server_hdr]
-    if powered_by:
-        all_detected["Backend Language / Runtime"] = [powered_by]
+        gen_match = re.search(
+            r'<meta[^>]+name=["\']generator["\'][^>]+content=["\'](.*?)["\']',
+            body, re.IGNORECASE
+        )
+        generator_val = gen_match.group(1) if gen_match else "N/A"
 
-    # 5. Cookie-based detection
-    detected_from_cookies = []
-    cookie_sigs = {
-        "PHP":         ["phpsessid"],
-        "ASP.NET":     ["asp.net_sessionid", "aspxauth"],
-        "Java/Tomcat": ["jsessionid"],
-        "Ruby on Rails": ["_session_id"],
-        "Django":      ["csrftoken", "sessionid"],
-        "Laravel":     ["laravel_session"],
-    }
-    for tech, cookie_keys in cookie_sigs.items():
-        for ck in cookie_keys:
-            if ck in cookies_str:
-                detected_from_cookies.append(tech)
-                break
-    if detected_from_cookies:
-        all_detected["Backend (Session Cookies)"] = detected_from_cookies
-
-    # 6. builtwith as supplementary
+    # ── OS detection via TTL ──────────────────────────────────────────────
+    os_guess = "Unknown"
     try:
-        import builtwith
-        bw_data = builtwith.parse(f"http://{domain}")
-        for category, tools in bw_data.items():
-            if tools:
-                cat_key = f"BuiltWith: {category}"
-                all_detected[cat_key] = tools
+        param = '-n' if os.name == 'nt' else '-c'
+        result = subprocess.run(
+            ['ping', param, '1', domain],
+            capture_output=True, text=True, timeout=8
+        )
+        ttl_match = re.search(r'ttl=(\d+)', result.stdout, re.IGNORECASE)
+        if ttl_match:
+            os_guess = _ttl_to_os(int(ttl_match.group(1)))
     except Exception:
         pass
 
-    # 7. OS Guess from TTL
-    output.append(f"\n[OS FINGERPRINT via TTL]")
+    # Refine with Server header
+    srv_lower = server.lower()
+    if any(x in srv_lower for x in ["ubuntu", "debian", "centos", "fedora", "linux"]):
+        os_guess = f"Linux ({server})"
+    elif any(x in srv_lower for x in ["win", "iis", "microsoft"]):
+        os_guess = f"Windows Server ({server})"
+
+    # ── builtwith (optional) ──────────────────────────────────────────────
+    bw_data = {}
     try:
-        param = '-n' if os.name == 'nt' else '-c'
-        proc = subprocess.Popen(['ping', param, '1', domain], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, _ = proc.communicate(timeout=8)
-        ttl_match = re.search(r'ttl=(\d+)', out.decode('utf-8', errors='ignore'), re.IGNORECASE)
-        if ttl_match:
-            ttl = int(ttl_match.group(1))
-            if ttl <= 64:
-                os_guess = f"Linux / Unix (TTL={ttl})"
-            elif ttl <= 128:
-                os_guess = f"Windows Server (TTL={ttl})"
-            else:
-                os_guess = f"Solaris / Network Device (TTL={ttl})"
-            output.append(f"  OS Guess: {os_guess}")
-        else:
-            output.append(f"  Could not determine OS from TTL.")
+        import builtwith
+        bw_data = builtwith.parse(f"https://{domain}")
     except Exception:
-        output.append(f"  Ping failed — could not determine OS.")
+        pass
 
-    # Build final output
-    output.append(f"\n[DETECTED TECHNOLOGIES]")
-    if all_detected:
-        for category, items in all_detected.items():
-            output.append(f"\n  [{category}]")
-            for item in items:
-                output.append(f"    - {item}")
+    # ── Build report ──────────────────────────────────────────────────────
+    lines = [
+        f"TECHNOLOGY STACK REPORT: {domain}",
+        "=" * 50,
+        "",
+        "[+] SERVER INFO:",
+        "-" * 44,
+        f"  Server Header  : {server}",
+        f"  X-Powered-By   : {powered}",
+        f"  Content-Type   : {content_type}",
+        f"  ASP.NET Version: {x_aspnet}",
+        f"  ASP.NET MVC    : {x_aspnetmvc}",
+        f"  Meta Generator : {generator_val}",
+        f"  OS Fingerprint : {os_guess}",
+        "",
+        "[+] DETECTED TECHNOLOGIES:",
+        "-" * 44,
+    ]
+
+    if detected:
+        for tech in sorted(detected.keys()):
+            lines.append(f"  [+] {tech}")
     else:
-        output.append("  No specific technologies detected.")
+        lines.append("  No specific technologies matched.")
 
-    # Meta tags extract
-    output.append(f"\n[META TAG ANALYSIS]")
-    meta_matches = re.findall(r'<meta[^>]+(name|property)=["\']([^"\']+)["\'][^>]+(content)=["\']([^"\']+)["\']', html_source[:50000])
-    useful_meta_names = {'generator', 'author', 'description', 'framework', 'application-name'}
-    for m in meta_matches:
-        if m[1].lower() in useful_meta_names:
-            output.append(f"  {m[1]}: {m[3][:100]}")
+    if bw_data:
+        lines += ["", "[+] BUILTWITH ANALYSIS:", "-" * 44]
+        for cat, tools in bw_data.items():
+            lines.append(f"  {cat}: {', '.join(tools)}")
 
-    try:
-        with open(f"{save_path}/technologies.txt", "w", encoding="utf-8") as f:
-            f.write("\n".join(output))
-    except Exception as e:
-        print(Fore.RED + f"  [-] Tech save error: {e}")
+    # ── Interesting paths probe ────────────────────────────────────────────
+    lines += ["", "[+] INTERESTING PATHS PROBE:", "-" * 44]
+    exposed_count = 0
+    for path in INTERESTING_PATHS:
+        for proto in ["https", "http"]:
+            try:
+                r = requests.get(
+                    f"{proto}://{domain}{path}",
+                    headers=HEADERS,
+                    timeout=6,
+                    allow_redirects=False
+                )
+                code = r.status_code
+                if code == 200:
+                    lines.append(f"  [EXPOSED] {proto}://{domain}{path} — HTTP {code}")
+                    exposed_count += 1
+                elif code in (301, 302, 403):
+                    lines.append(f"  [{code}]     {proto}://{domain}{path}")
+                break
+            except Exception:
+                continue
 
-    count = sum(len(v) for v in all_detected.values())
-    print(Fore.GREEN + f"  [+] Tech detection done. {count} technologies found across {len(all_detected)} categories.")
+    if exposed_count == 0:
+        lines.append("  No obviously exposed paths found.")
+
+    with open(f"{save_path}/technologies.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(Fore.GREEN + f"[+] Tech detection complete. {len(detected)} technologies, {exposed_count} exposed paths.")
