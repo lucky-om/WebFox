@@ -183,11 +183,6 @@ Contributions are welcome!
 👤 Author
 
 Lucky
-Krish
-Jayesh
-Aryan
-Kunal
-Shani
 GitHub: https://github.com/lucky-om
 
 
