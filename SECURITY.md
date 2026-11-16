@@ -17,7 +17,7 @@ We only provide security updates and patches for the latest "Ultimate Edition" r
 
 | Version | Supported          | Status |
 | :------ | :----------------- | :----- |
-| v3.0+  | :white_check_mark: | **Active Maintenance** |
+| v4.0+  | :white_check_mark: | **Active Maintenance** |
 | v2.x    | :x:                | End of Life |
 | < v2.0  | :x:                | Deprecated |
 
